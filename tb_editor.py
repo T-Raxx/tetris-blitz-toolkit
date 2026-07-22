@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -38,6 +38,7 @@ class Editor(QMainWindow):
         self._discovery = None
         self._disc_placeholder = QWidget()
         self.tabs.addTab(self._disc_placeholder, "Discovery")
+        self.tabs.addTab(tbmodbuilder.ModBuilderTab(self.key, self._on_mod_build), "Mod Builder")
         self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
         openb = QPushButton("Open…"); openb.clicked.connect(self._open_dialog)
@@ -182,6 +183,17 @@ class Editor(QMainWindow):
         QMessageBox.information(self, "Build & Install",
             f"installed = {res['installed']}\n\n{res['log'][-500:]}")
         self.status.setText("installed ✓" if res["installed"] else "install failed")
+
+    def _on_mod_build(self, config):
+        self.status.setText("applying mods + building…"); QApplication.processEvents()
+        try:
+            staged = tbmods.apply_and_stage(config, self.mod_stage, self.key)
+            res = tbbuild.build_sign_install(self.mod_stage)
+        except Exception as e:
+            QMessageBox.warning(self, "Mod build failed", str(e)); return
+        QMessageBox.information(self, "Mod Builder",
+            f"applied: {staged['applied']}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
+        self.status.setText("mods installed ✓" if res["installed"] else "install failed")
 
     def _verify_roundtrip(self):
         if not self.current: return
