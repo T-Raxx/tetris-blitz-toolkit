@@ -54,6 +54,7 @@ class Editor(QMainWindow):
         self.setCentralWidget(root)
         self.setStyleSheet(DARK)
         self.pullb.clicked.connect(self._pull); self.pushb.clicked.connect(self._push)
+        self._refresh_device()
 
     def _load_local_list(self):
         self.files.clear()
@@ -104,11 +105,37 @@ class Editor(QMainWindow):
             self.status.setText("edited (unsaved)")
         holder.addWidget(tbpanels.build_smart(self.current, on_change))
 
+    def _refresh_device(self):
+        try:
+            dev = tbadb.device()
+        except Exception:
+            dev = None
+        ok = dev is not None
+        self.pullb.setEnabled(ok); self.pushb.setEnabled(ok)
+        self.status.setText(f"device: {dev}" if ok else "device: none")
+
     def _pull(self):
-        pass  # Task 5
+        try:
+            data = tbadb.pull(tbadb.KNOWN_FILES[0])
+            tb = tbfiles.load_bytes(data, self.key)
+        except Exception as e:
+            QMessageBox.warning(self, "Pull failed", str(e)); return
+        self.current, self.current_path = tb, tbadb.KNOWN_FILES[0]
+        self.badge.setText(tb.fmt)
+        self.raw.setPlainText(json.dumps(tb.obj, indent=2))
+        self._rebuild_smart()
+        self.status.setText("pulled live save")
 
     def _push(self):
-        pass  # Task 5
+        if not self.current: return
+        self._sync_raw_to_obj()
+        try:
+            data = tbfiles.dump_bytes(self.current)
+            bak = tbadb.push(tbadb.KNOWN_FILES[0], data)
+        except Exception as e:
+            QMessageBox.warning(self, "Push failed", str(e)); return
+        QMessageBox.information(self, "Pushed", f"Save pushed.\nBackup: {bak or '(none)'}")
+        self.status.setText("pushed save (restart game to load)")
 
 def main():
     app = QApplication(sys.argv)
