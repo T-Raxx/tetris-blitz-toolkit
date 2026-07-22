@@ -40,3 +40,39 @@ def test_stage_native_writes_lib(tmp_path):
 def test_load_patches_reads_registry():
     ps = tbnative.load_patches("native_patches.json")
     assert isinstance(ps, list)
+
+def _flonase_like_patch(so_bytes):
+    off = 0xb8bf0c - 0x100000
+    return {"id": "cave1", "name": "t", "type": "cave", "status": "wip", "note": "",
+            "redirect": {"ghidra_addr": "0x00b8bf0c", "orig": so_bytes[off:off + 4].hex()},
+            "displaced_asm": "stp d9, d8, [sp, #-0x70]!",
+            "guard_asm": "cmp x0, #0x1000\nb.lo {skip}"}
+
+def test_apply_cave_patch_injects_and_redirects(tmp_path):
+    import lief
+    src = str(tbnative.SRC_SO)
+    so = open(src, "rb").read()
+    out = tbnative.apply_cave_patch(_flonase_like_patch(so), src_so=src, out_so=str(tmp_path / "c.so"))
+    b0 = lief.parse(src); b1 = lief.parse(out)
+    assert len(b1.segments) == len(b0.segments) + 1
+    # LIEF add() shifts .text; the redirect lives at the shifted vaddr and is now a B
+    shift = b1.get_section(".text").virtual_address - b0.get_section(".text").virtual_address
+    red = (0xb8bf0c - 0x100000) + shift
+    br = bytes(b1.get_content_from_virtual_address(red, 4))
+    assert (int.from_bytes(br, "little") >> 26) == 0b000101
+
+def test_apply_cave_rejects_mismatch(tmp_path):
+    src = str(tbnative.SRC_SO); so = open(src, "rb").read()
+    p = _flonase_like_patch(so); p["redirect"]["orig"] = "deadbeef"
+    try:
+        tbnative.apply_cave_patch(p, src_so=src, out_so=str(tmp_path / "c.so"))
+        assert False
+    except ValueError:
+        pass
+
+def test_stage_native_cave(tmp_path):
+    import lief
+    src = str(tbnative.SRC_SO); so = open(src, "rb").read()
+    p = _flonase_like_patch(so)
+    out = tbnative.apply_patches(["cave1"], [p], src_so=src, out_so=str(tmp_path / "o.so"))
+    assert len(lief.parse(out).segments) == len(lief.parse(src).segments) + 1
