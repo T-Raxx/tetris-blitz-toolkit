@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt
+import tbfiles, tbadb, tbcrypt, tbpanels
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -92,7 +92,17 @@ class Editor(QMainWindow):
             except Exception as e: QMessageBox.warning(self, "Save failed", str(e))
 
     def _rebuild_smart(self):
-        pass  # Task 4
+        holder = self.smart_holder.layout()
+        while holder.count():
+            w = holder.takeAt(0).widget()
+            if w: w.deleteLater()
+        if not self.current: return
+        def on_change():
+            self.raw.blockSignals(True)
+            self.raw.setPlainText(json.dumps(self.current.obj, indent=2))
+            self.raw.blockSignals(False)
+            self.status.setText("edited (unsaved)")
+        holder.addWidget(tbpanels.build_smart(self.current, on_change))
 
     def _pull(self):
         pass  # Task 5
