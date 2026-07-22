@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -24,6 +24,7 @@ class Editor(QMainWindow):
         self.key = tbcrypt.load_key("key.json")
         self.current = None
         self.current_path = None
+        self.mod_stage = "mod_stage"
 
         self.files = QListWidget()
         self._load_local_list()
@@ -44,8 +45,10 @@ class Editor(QMainWindow):
         self.pullb = QPushButton("Pull save"); self.pushb = QPushButton("Push save")
         self.badge = QLabel("—"); self.status = QLabel("ready"); self.status.setObjectName("status")
 
+        stageb = QPushButton("Stage for build"); stageb.clicked.connect(self._stage_current)
+        buildb = QPushButton("Build & Install APK"); buildb.clicked.connect(self._build_install)
         top = QHBoxLayout()
-        for wdg in (openb, saveb, self.pullb, self.pushb, QLabel("fmt:"), self.badge):
+        for wdg in (openb, saveb, self.pullb, self.pushb, stageb, buildb, QLabel("fmt:"), self.badge):
             top.addWidget(wdg)
         top.addStretch(1); top.addWidget(self.status)
 
@@ -153,6 +156,32 @@ class Editor(QMainWindow):
             QMessageBox.warning(self, "Push failed", str(e)); return
         QMessageBox.information(self, "Pushed", f"Save pushed.\nBackup: {bak or '(none)'}")
         self.status.setText("pushed save (restart game to load)")
+
+    def _stage_current(self):
+        if not self.current:
+            return
+        self._sync_raw_to_obj()
+        src = (pathlib.Path("..") / "Tetris blitz").resolve()
+        try:
+            rel = pathlib.Path(self.current_path).resolve().relative_to(src)
+        except Exception:
+            QMessageBox.warning(self, "Stage", "Only files from the APK tree can be staged "
+                                "(device saves use Push)."); return
+        dest = pathlib.Path(self.mod_stage) / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(tbfiles.dump_bytes(self.current))
+        n = sum(1 for p in pathlib.Path(self.mod_stage).rglob("*") if p.is_file())
+        self.status.setText(f"staged {rel.name} ({n} file(s) in build)")
+
+    def _build_install(self):
+        self.status.setText("building + signing + installing…"); QApplication.processEvents()
+        try:
+            res = tbbuild.build_sign_install(self.mod_stage)
+        except Exception as e:
+            QMessageBox.warning(self, "Build failed", str(e)); return
+        QMessageBox.information(self, "Build & Install",
+            f"installed = {res['installed']}\n\n{res['log'][-500:]}")
+        self.status.setText("installed ✓" if res["installed"] else "install failed")
 
     def _verify_roundtrip(self):
         if not self.current: return
