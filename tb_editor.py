@@ -197,12 +197,12 @@ class Editor(QMainWindow):
             f"applied: {staged['applied']}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
         self.status.setText("mods installed ✓" if res["installed"] else "install failed")
 
-    def _on_native_build(self, ids):
+    def _on_native_build(self, ids, values=None):
         if not ids:
             QMessageBox.information(self, "Native", "No patches selected."); return
         self.status.setText("patching .so + building…"); QApplication.processEvents()
         try:
-            staged = tbnative.stage_native(ids, tbnative.load_patches(), self.mod_stage)
+            staged = tbnative.stage_native(ids, tbnative.load_patches(), self.mod_stage, values=values)
             build = tbbuild.build_sign_install(self.mod_stage)
         except Exception as e:
             QMessageBox.warning(self, "Native build failed", str(e)); return
