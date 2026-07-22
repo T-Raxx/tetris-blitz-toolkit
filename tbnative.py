@@ -13,6 +13,18 @@ def load_patches(path="native_patches.json"):
 def _off(ghidra_addr):
     return int(ghidra_addr, 16) - IMAGE_BASE
 
+def assemble_write(write, values):
+    orig = bytes.fromhex(write["orig"])
+    if "asm" in write:
+        from keystone import Ks, KS_ARCH_ARM64, KS_MODE_LITTLE_ENDIAN
+        ks = Ks(KS_ARCH_ARM64, KS_MODE_LITTLE_ENDIAN)
+        enc, _ = ks.asm(write["asm"].format(**(values or {})), addr=int(write["ghidra_addr"], 16))
+        pb = bytes(enc)
+        if len(pb) != len(orig):
+            raise ValueError(f"asm write assembled to {len(pb)} bytes, expected {len(orig)}")
+        return pb
+    return bytes.fromhex(write["patch"])
+
 def verify(so_bytes, patch):
     for w in patch.get("writes", []):
         off = _off(w["ghidra_addr"]); orig = bytes.fromhex(w["orig"])
@@ -67,7 +79,7 @@ def apply_cave_patch(patch, src_so=SRC_SO, out_so=None):
     b.write(str(out))
     return str(out)
 
-def apply_patches(patch_ids, patches, src_so=SRC_SO, out_so=None):
+def apply_patches(patch_ids, patches, src_so=SRC_SO, out_so=None, values=None):
     byid = {p["id"]: p for p in patches}
     inline = [byid[i] for i in patch_ids if byid[i].get("type", "inline") == "inline"]
     caves = [byid[i] for i in patch_ids if byid[i].get("type") == "cave"]
@@ -79,7 +91,7 @@ def apply_patches(patch_ids, patches, src_so=SRC_SO, out_so=None):
         if not verify(data, p):
             raise ValueError(f"orig-bytes mismatch for patch {p['id']}")
         for w in p.get("writes", []):
-            off = _off(w["ghidra_addr"]); pb = bytes.fromhex(w["patch"])
+            off = _off(w["ghidra_addr"]); pb = assemble_write(w, (values or {}).get(p["id"], {}))
             data[off:off + len(pb)] = pb
     if not caves:
         out.write_bytes(bytes(data))
@@ -92,8 +104,8 @@ def apply_patches(patch_ids, patches, src_so=SRC_SO, out_so=None):
         apply_cave_patch(p, src_so=cur, out_so=dst); cur = dst
     return str(out)
 
-def stage_native(patch_ids, patches, stage_dir="mod_stage"):
+def stage_native(patch_ids, patches, stage_dir="mod_stage", values=None):
     dest = pathlib.Path(stage_dir) / "lib" / "arm64-v8a" / "libTetrisBlitzApp.so"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    apply_patches(patch_ids, patches, out_so=str(dest))
+    apply_patches(patch_ids, patches, out_so=str(dest), values=values)
     return {"staged": [SO_REL], "applied": list(patch_ids)}
