@@ -12,3 +12,5 @@ __pycache__/
 .pytest_cache/
 .superpowers/
 backups/
+assets_cache/
+sprite_map.json
