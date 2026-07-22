@@ -53,6 +53,12 @@ def test_editor_has_restore_tab():
     titles = [w.tabs.tabText(i) for i in range(w.tabs.count())]
     assert "Restore" in titles
 
+def test_editor_has_native_tab():
+    app = QApplication.instance() or QApplication([])
+    w = tb_editor.Editor()
+    titles = [w.tabs.tabText(i) for i in range(w.tabs.count())]
+    assert "Native" in titles
+
 def test_stage_for_build_writes_override(tmp_path):
     app = QApplication.instance() or QApplication([])
     import pathlib, tbfiles, tbcrypt

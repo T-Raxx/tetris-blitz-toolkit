@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -40,6 +40,7 @@ class Editor(QMainWindow):
         self.tabs.addTab(self._disc_placeholder, "Discovery")
         self.tabs.addTab(tbmodbuilder.ModBuilderTab(self.key, self._on_mod_build), "Mod Builder")
         self.tabs.addTab(tbrestoretab.RestoreTab(self.key, self._on_restore_build), "Restore")
+        self.tabs.addTab(tbnativetab.NativeTab(self._on_native_build), "Native")
         self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
         openb = QPushButton("Open…"); openb.clicked.connect(self._open_dialog)
@@ -195,6 +196,19 @@ class Editor(QMainWindow):
         QMessageBox.information(self, "Mod Builder",
             f"applied: {staged['applied']}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
         self.status.setText("mods installed ✓" if res["installed"] else "install failed")
+
+    def _on_native_build(self, ids):
+        if not ids:
+            QMessageBox.information(self, "Native", "No patches selected."); return
+        self.status.setText("patching .so + building…"); QApplication.processEvents()
+        try:
+            staged = tbnative.stage_native(ids, tbnative.load_patches(), self.mod_stage)
+            build = tbbuild.build_sign_install(self.mod_stage)
+        except Exception as e:
+            QMessageBox.warning(self, "Native build failed", str(e)); return
+        QMessageBox.information(self, "Native",
+            f"applied: {staged['applied']}\ninstalled = {build['installed']}\n\n{build['log'][-300:]}")
+        self.status.setText("native patched ✓" if build["installed"] else "install failed")
 
     def _on_restore_build(self, uIds):
         if not uIds:
