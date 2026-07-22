@@ -1,0 +1,9 @@
+decrypted/
+modded/
+build/*.apk
+build/*.keystore
+frida/frida-server*
+key.json
+save.bin
+save*.json
+save_out.bin
