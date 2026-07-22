@@ -38,6 +38,21 @@ def test_rename_flonase():
     assert hit and "CRASHES GAME" in hit[0]["text"]["en"]
     assert "STRID_HELPERS_FLONASEPOWERUP_TITLE" in fl["strings"]
 
+def test_level_fix_inherits_typeid_twin_perks():
+    h = _obj("helper.json")
+    by = {x["uId"]: x for x in h["helpers"]}
+    laser_perks = len(by[2]["perks"])
+    by[24]["active"] = 1                          # restore Toyota finisher (typeId 3 = Laser)
+    tbmods.level_fix(h)
+    assert len(by[24]["perks"]) == laser_perks    # inherited Laser's perks
+
+def test_label_crasher_generic():
+    lo = _obj("LocStringsOverride.json"); fl = _obj("ManualForceLocStringOverride.json")
+    tbmods.label_crasher(lo, fl, "STRID_HELPERS_WILDCARD_TITLE", "WildCard")
+    hit = [s for s in lo["strings"] if s["key"] == "STRID_HELPERS_WILDCARD_TITLE"]
+    assert hit and hit[0]["text"]["en"] == "WildCard (CRASHES GAME)"
+    assert "STRID_HELPERS_WILDCARD_TITLE" in fl["strings"]
+
 def test_apply_and_stage_roundtrips(tmp_path):
     cfg = {"unlock_all": True, "currency": {"on": True, "coins": 12345},
            "behavior": [{"uId": 2, "preset": "clear_whole_matrix"}], "rename_flonase": True}

@@ -15,13 +15,22 @@ def unlock_all_powerups(helper):
         x["active"] = 1; x["unlockedByDefault"] = True
 
 def level_fix(helper):
-    by = {x["uId"]: x for x in helper["helpers"]}
-    mv = copy.deepcopy(by.get(38, {}).get("perks", []))
+    perks_by_type = {}
+    for x in helper["helpers"]:
+        if x.get("perks") and x.get("typeId") is not None:
+            perks_by_type.setdefault(x["typeId"], x["perks"])
+    mv = next((x["perks"] for x in helper["helpers"] if x.get("uId") == 38 and x.get("perks")), [])
     stub = [{"Level": 1, "Upgrade": {"Cost": 0, "LevelGate": -1, "PUatLevelGate": -1},
              "Effects": {"Active": []}}]
     for x in helper["helpers"]:
         if x.get("active") == 1 and not x.get("perks"):
-            x["perks"] = copy.deepcopy(mv) if (x.get("uId") == 45 and mv) else copy.deepcopy(stub)
+            tid = x.get("typeId")
+            if tid in perks_by_type:
+                x["perks"] = copy.deepcopy(perks_by_type[tid])
+            elif x.get("uId") == 45 and mv:
+                x["perks"] = copy.deepcopy(mv)
+            else:
+                x["perks"] = copy.deepcopy(stub)
 
 def show_hidden_powerups(helper):
     for x in helper["helpers"]:
@@ -81,17 +90,19 @@ def boost_coin_awards(gameplay, multiplier):
         if k.startswith("NumberOfCoinsFor") and isinstance(v, int):
             gameplay[k] = int(v * multiplier)
 
-def rename_flonase_crashes(locoverride, forcelist):
-    K = "STRID_HELPERS_FLONASEPOWERUP_TITLE"
+def label_crasher(locoverride, forcelist, strid, base_name):
     langs = ["en", "es", "de", "fr", "it", "ja", "ko", "pt", "ru", "zh"]
-    text = {l: "Flonase (CRASHES GAME)" for l in langs}
-    entry = next((s for s in locoverride.get("strings", []) if s.get("key") == K), None)
+    text = {l: f"{base_name} (CRASHES GAME)" for l in langs}
+    entry = next((s for s in locoverride.get("strings", []) if s.get("key") == strid), None)
     if entry:
         entry["text"] = text
     else:
-        locoverride.setdefault("strings", []).append({"key": K, "text": text})
-    if K not in forcelist.get("strings", []):
-        forcelist.setdefault("strings", []).append(K)
+        locoverride.setdefault("strings", []).append({"key": strid, "text": text})
+    if strid not in forcelist.get("strings", []):
+        forcelist.setdefault("strings", []).append(strid)
+
+def rename_flonase_crashes(locoverride, forcelist):
+    label_crasher(locoverride, forcelist, "STRID_HELPERS_FLONASEPOWERUP_TITLE", "Flonase")
 
 def apply_and_stage(config, stage_dir="mod_stage", key=None):
     key = key or tbcrypt.load_key()
