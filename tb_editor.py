@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -50,7 +50,7 @@ class Editor(QMainWindow):
         split.setStretchFactor(1, 1); split.setSizes([260, 840])
 
         root = QWidget(); lay = QVBoxLayout(root)
-        lay.addLayout(top); lay.addWidget(split)
+        lay.addLayout(top); lay.addWidget(split, 1)
         self.setCentralWidget(root)
         self.setStyleSheet(DARK)
         self.pullb.clicked.connect(self._pull); self.pushb.clicked.connect(self._push)
@@ -104,7 +104,10 @@ class Editor(QMainWindow):
             self.raw.setPlainText(json.dumps(self.current.obj, indent=2))
             self.raw.blockSignals(False)
             self.status.setText("edited (unsaved)")
-        holder.addWidget(tbpanels.build_smart(self.current, on_change))
+        if tbmosaic.is_mosaic(self.current.obj):
+            holder.addWidget(tbassembler.Assembler(self.current, on_change))
+        else:
+            holder.addWidget(tbpanels.build_smart(self.current, on_change))
 
     def _refresh_device(self):
         try:

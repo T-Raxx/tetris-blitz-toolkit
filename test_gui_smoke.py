@@ -25,3 +25,12 @@ def test_pull_loads_save_into_editor(monkeypatch):
     w = tb_editor.Editor()
     w._pull()
     assert w.current is not None and w.current.fmt == "save" and "Coins" in w.current.obj
+
+def test_mosaic_file_shows_assembler():
+    app = QApplication.instance() or QApplication([])
+    import tbassembler
+    w = tb_editor.Editor()
+    w.open_local(str(COEFF / "SuperNova.json"))
+    holder = w.smart_holder.layout()
+    widgets = [holder.itemAt(i).widget() for i in range(holder.count())]
+    assert any(isinstance(x, tbassembler.Assembler) for x in widgets)
