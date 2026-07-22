@@ -15,3 +15,5 @@ backups/
 assets_cache/
 sprite_map.json
 discovery_cache/
+mod_stage/
+build/
