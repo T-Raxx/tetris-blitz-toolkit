@@ -90,6 +90,11 @@ def boost_coin_awards(gameplay, multiplier):
         if k.startswith("NumberOfCoinsFor") and isinstance(v, int):
             gameplay[k] = int(v * multiplier)
 
+def set_core_mechanics(core, overrides):
+    for k, v in (overrides or {}).items():
+        if k in core:
+            core[k] = v
+
 def label_crasher(locoverride, forcelist, strid, base_name):
     langs = ["en", "es", "de", "fr", "it", "ja", "ko", "pt", "ru", "zh"]
     text = {l: f"{base_name} (CRASHES GAME)" for l in langs}
@@ -133,6 +138,10 @@ def apply_and_stage(config, stage_dir="mod_stage", key=None):
     if ca and ca.get("on"):
         boost_coin_awards(get("GameplayCoefficients.json").obj, ca.get("multiplier", 1))
         applied.append("coin_awards")
+    cm = config.get("core_mechanics")
+    if cm:
+        set_core_mechanics(get("CoreMechanicsCoefficients.json").obj, cm)
+        applied.append("core_mechanics")
     if config.get("rename_flonase"):
         rename_flonase_crashes(get("LocStringsOverride.json").obj,
                                get("ManualForceLocStringOverride.json").obj)
