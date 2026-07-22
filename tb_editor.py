@@ -71,6 +71,7 @@ class Editor(QMainWindow):
         self.raw.setPlainText(json.dumps(tb.obj, indent=2))
         self._rebuild_smart()
         self.status.setText(f"opened {pathlib.Path(path).name}")
+        self._verify_roundtrip()
 
     def _sync_raw_to_obj(self):
         if self.current and self.tabs.currentWidget() is self.raw:
@@ -125,6 +126,7 @@ class Editor(QMainWindow):
         self.raw.setPlainText(json.dumps(tb.obj, indent=2))
         self._rebuild_smart()
         self.status.setText("pulled live save")
+        self._verify_roundtrip()
 
     def _push(self):
         if not self.current: return
@@ -136,6 +138,16 @@ class Editor(QMainWindow):
             QMessageBox.warning(self, "Push failed", str(e)); return
         QMessageBox.information(self, "Pushed", f"Save pushed.\nBackup: {bak or '(none)'}")
         self.status.setText("pushed save (restart game to load)")
+
+    def _verify_roundtrip(self):
+        if not self.current: return
+        try:
+            data = tbfiles.dump_bytes(self.current)
+            reparsed = tbfiles.load_bytes(data, self.key)
+            good = reparsed.obj == self.current.obj
+            self.badge.setText(f"{self.current.fmt}  {'✓' if good else '✗'}")
+        except Exception:
+            self.badge.setText(f"{self.current.fmt}  ?")
 
 def main():
     app = QApplication(sys.argv)
