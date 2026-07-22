@@ -35,6 +35,17 @@ dereferences as a pointer → SEGV. Consistent with "same as Mino Vortex but cra
 - **C. Accept WIP:** ship the native-patch framework; label Flonase (CRASHES GAME) stays (already done
   in restoration); revisit the fix later.
 
+## Iteration 1 (2026-07-22) — object-validity guard did NOT fix it
+- Section-injection patcher built (LIEF+keystone, shift-aware). Cave stub verified correct:
+  `cmp x0,#0x1000; b.lo skip; stp d9,d8,[sp,#-0x70]!; b entry+4; skip: ret` at `FUN_00b8bf0c`.
+  Built + installed + booted clean.
+- Triggered Flonase in-game → **still crashes.** So the fault is NOT `FUN_00b8bf0c` entered with a
+  garbage `x0` — the houdini backtrace/regs were misleading (translated state). The real fault is
+  elsewhere (deeper callee / different function / pre-2016 logic path).
+- Correct next step needs reliable ground truth: an actual ARM debugger breakpoint (Ghidra debugger
+  or gdbserver) at the fault, or bisecting via multiple guarded candidates — not the houdini backtrace.
+
 ## Status
-Framework (tbnative + Native tab) shipped and unit-tested. Flonase native fix = **WIP** pending the
-decision above.
+Section-injection framework (tbnative cave-patch + Native tab) shipped and unit-tested and proven to
+build/boot. Flonase native fix = **WIP** (guard iteration 1 ineffective; needs reliable fault
+localization). Shelved by decision — pivoting to the mod-UX/semantics subsystem.

@@ -1,1 +1,7 @@
-{ "patches": [] }
+{ "patches": [
+  { "id": "flonase_crash_fix", "name": "Fix Flonase crash", "type": "cave", "status": "wip",
+    "note": "Guards the render method (FUN_00b8bf0c) against a garbage (1) object pointer so Flonase no longer SEGVs on trigger.",
+    "redirect": { "ghidra_addr": "0x00b8bf0c", "orig": "e923b96d" },
+    "displaced_asm": "stp d9, d8, [sp, #-0x70]!",
+    "guard_asm": "cmp x0, #0x1000\nb.lo {skip}" }
+] }
