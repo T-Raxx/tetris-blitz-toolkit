@@ -1,72 +1,91 @@
 'use strict';
-// Dumps AES key material the moment the game inits a decrypt context.
-// Hooks both the high-level EVP init and the low-level AES key schedule.
-// MuMu runs the arm64 lib via x86 translation; symbols may live in the app
-// lib (static OpenSSL) or a separate libcrypto — resolve() covers both.
-const LIB = 'libTetrisBlitzApp.so';
+// Frida 17 API. Dumps AES key material from OpenSSL init calls.
+// The game statically links OpenSSL inside libTetrisBlitzApp.so (loaded late),
+// so we wait for that module, then hook its internal EVP/AES inits.
+// Also hook system libcrypto/libssl as a safety net.
+const APP = 'libTetrisBlitzApp.so';
 
 function hex(ptr, len) {
   try {
     return Array.from(new Uint8Array(ptr.readByteArray(len)))
       .map(b => ('0' + b.toString(16)).slice(-2)).join('');
-  } catch (e) { return '<unreadable ' + e + '>'; }
+  } catch (e) { return '<unreadable:' + e + '>'; }
 }
 
-function resolve(name) {
-  let a = Module.findExportByName(LIB, name);
-  if (a) return a;
+function resolveIn(mod, name) {
+  try { const a = mod.findExportByName(name); if (a) return a; } catch (e) {}
   try {
-    const s = Module.enumerateSymbols(LIB).find(s => s.name === name && !s.address.isNull());
+    const s = mod.enumerateSymbols().find(s => s.name === name && !s.address.isNull());
     if (s) return s.address;
   } catch (e) {}
-  return Module.findExportByName(null, name); // any module (separate libcrypto)
+  return null;
 }
 
-function diag() {
-  console.log('[i] modules of interest:');
-  Process.enumerateModules()
-    .filter(m => /Tetris|crypto|ssl|js/i.test(m.name))
-    .forEach(m => console.log('    ' + m.name + '  base=' + m.base + ' size=' + m.size));
-}
-
-function hookEVP() {
-  const a = resolve('EVP_DecryptInit_ex');
-  if (!a) { console.log('[!] EVP_DecryptInit_ex not found'); return; }
+function hookEVPInit(mod) {
+  const a = resolveIn(mod, 'EVP_DecryptInit_ex');
+  if (!a) return false;
   Interceptor.attach(a, {
-    onEnter(args) {
-      // int EVP_DecryptInit_ex(ctx, type, impl, key, iv)
-      const key = args[3], iv = args[4];
-      if (!key.isNull()) console.log('[EVP] key(32B)=' + hex(key, 32));
-      if (!iv.isNull())  console.log('[EVP] iv(16B) =' + hex(iv, 16));
+    onEnter(args) {                 // ctx, type, impl, key, iv
+      if (!args[3].isNull()) console.log('[EVP.dec] key(32B)=' + hex(args[3], 32) + '  (' + mod.name + ')');
+      if (!args[4].isNull()) console.log('[EVP.dec] iv(16B) =' + hex(args[4], 16));
     }
   });
-  console.log('[+] hooked EVP_DecryptInit_ex @ ' + a);
+  console.log('[+] hooked EVP_DecryptInit_ex @ ' + a + ' (' + mod.name + ')');
+  return true;
 }
 
-function hookEVPCipher() {
-  const a = resolve('EVP_CipherInit_ex');
-  if (!a) return;
+function hookEVPCipher(mod) {
+  const a = resolveIn(mod, 'EVP_CipherInit_ex');
+  if (!a) return false;
   Interceptor.attach(a, {
-    onEnter(args) {
-      const key = args[3], iv = args[4], enc = args[6];
-      if (!key.isNull()) console.log('[EVPc] enc=' + (enc && !enc.isNull() ? enc.toInt32() : '?') + ' key=' + hex(key, 32));
-      if (!iv.isNull())  console.log('[EVPc] iv =' + hex(iv, 16));
+    onEnter(args) {                 // ctx, type, impl, key, iv, enc
+      const enc = args[6];
+      if (!args[3].isNull()) console.log('[EVP.cip] enc=' + (enc && !enc.isNull() ? enc.toInt32() : '?') + ' key=' + hex(args[3], 32) + '  (' + mod.name + ')');
+      if (!args[4].isNull()) console.log('[EVP.cip] iv =' + hex(args[4], 16));
     }
   });
-  console.log('[+] hooked EVP_CipherInit_ex @ ' + a);
+  console.log('[+] hooked EVP_CipherInit_ex @ ' + a + ' (' + mod.name + ')');
+  return true;
 }
 
-function hookAES() {
-  const a = resolve('AES_set_decrypt_key');
-  if (!a) { console.log('[!] AES_set_decrypt_key not found'); return; }
+function hookAES(mod) {
+  const a = resolveIn(mod, 'AES_set_decrypt_key');
+  if (!a) return false;
   Interceptor.attach(a, {
-    onEnter(args) {
-      // int AES_set_decrypt_key(userKey, bits, aeskey)
+    onEnter(args) {                 // userKey, bits, aeskey
       const bits = args[1].toInt32();
-      console.log('[AES] bits=' + bits + ' key=' + hex(args[0], bits / 8));
+      console.log('[AES.dec] bits=' + bits + ' key=' + hex(args[0], bits / 8) + '  (' + mod.name + ')');
     }
   });
-  console.log('[+] hooked AES_set_decrypt_key @ ' + a);
+  console.log('[+] hooked AES_set_decrypt_key @ ' + a + ' (' + mod.name + ')');
+  return true;
 }
 
-setTimeout(() => { diag(); hookEVP(); hookEVPCipher(); hookAES(); }, 0);
+function hookAll(mod) {
+  const a = hookEVPInit(mod), b = hookEVPCipher(mod), c = hookAES(mod);
+  if (!(a || b || c)) console.log('[!] no crypto init symbols resolved in ' + mod.name);
+}
+
+function whenLoaded(name, cb) {
+  const m = Process.findModuleByName(name);
+  if (m) { cb(m); return; }
+  const id = setInterval(() => {
+    const mm = Process.findModuleByName(name);
+    if (mm) { clearInterval(id); cb(mm); }
+  }, 30);
+}
+
+// safety net: hook system crypto libs already present
+Process.enumerateModules()
+  .filter(m => /^libcrypto\.so$|^libssl\.so$/.test(m.name))
+  .forEach(m => { console.log('[i] safety-net hook ' + m.name + ' @ ' + m.base); hookAll(m); });
+
+// primary: wait for the app lib, report its symbol availability, hook internals
+whenLoaded(APP, m => {
+  console.log('[i] ' + APP + ' loaded base=' + m.base + ' size=' + m.size);
+  let ex = -1, sy = -1;
+  try { ex = m.enumerateExports().length; } catch (e) {}
+  try { sy = m.enumerateSymbols().length; } catch (e) {}
+  console.log('[i] ' + APP + ' exports=' + ex + ' symbols=' + sy);
+  hookAll(m);
+});
