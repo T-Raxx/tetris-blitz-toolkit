@@ -2,7 +2,7 @@ import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -34,6 +34,10 @@ class Editor(QMainWindow):
         self.smart_holder = QWidget(); self.smart_holder.setLayout(QVBoxLayout())
         self.tabs.addTab(self.smart_holder, "Smart")
         self.tabs.addTab(self.raw, "Raw JSON")
+        self._discovery = None
+        self._disc_placeholder = QWidget()
+        self.tabs.addTab(self._disc_placeholder, "Discovery")
+        self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
         openb = QPushButton("Open…"); openb.clicked.connect(self._open_dialog)
         saveb = QPushButton("Save As…"); saveb.clicked.connect(self._save_dialog)
@@ -92,6 +96,14 @@ class Editor(QMainWindow):
         if p:
             try: self.save_local(p)
             except Exception as e: QMessageBox.warning(self, "Save failed", str(e))
+
+    def _maybe_build_discovery(self, idx):
+        if self.tabs.tabText(idx) != "Discovery" or self._discovery is not None:
+            return
+        self.status.setText("building discovery catalog…"); QApplication.processEvents()
+        self._discovery = tbdiscovertab.DiscoveryTab()
+        self.tabs.removeTab(idx); self.tabs.insertTab(idx, self._discovery, "Discovery")
+        self.tabs.setCurrentIndex(idx); self.status.setText("discovery ready")
 
     def _rebuild_smart(self):
         holder = self.smart_holder.layout()

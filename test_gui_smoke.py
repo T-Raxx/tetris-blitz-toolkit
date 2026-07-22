@@ -34,3 +34,9 @@ def test_mosaic_file_shows_assembler():
     holder = w.smart_holder.layout()
     widgets = [holder.itemAt(i).widget() for i in range(holder.count())]
     assert any(isinstance(x, tbassembler.Assembler) for x in widgets)
+
+def test_editor_has_discovery_tab():
+    app = QApplication.instance() or QApplication([])
+    w = tb_editor.Editor()
+    titles = [w.tabs.tabText(i) for i in range(w.tabs.count())]
+    assert "Discovery" in titles
