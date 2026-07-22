@@ -6,4 +6,9 @@ frida/frida-server*
 key.json
 save.bin
 save*.json
+save*.bin
 save_out.bin
+__pycache__/
+.pytest_cache/
+.superpowers/
+backups/
