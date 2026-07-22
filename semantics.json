@@ -1,0 +1,7 @@
+{
+  "helper_frostbite|totalNumRows": {"label": "Rows to freeze", "tooltip": "totalNumRows — number of bottom rows frozen by Frostbite"},
+  "|NumLineClears": {"label": "Lines cleared", "tooltip": "NumLineClears — how many lines the powerup clears"},
+  "|NumberOfRows": {"label": "Rows affected", "tooltip": "NumberOfRows"},
+  "|Radius": {"label": "Blast radius", "tooltip": "Radius — area of effect in cells"},
+  "|Duration": {"label": "Duration", "tooltip": "Duration"}
+}
