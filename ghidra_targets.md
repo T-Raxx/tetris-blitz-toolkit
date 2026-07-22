@@ -51,3 +51,13 @@ above. Recovers the derived key from RAM in minutes without full RE.
 - Cand B: key `5a584967625746796132563049476c7501c1...` iv `5756756443776754573971595735484b`
   (key bytes are ASCII/base64 — a text-processing subsystem).
 Revisit these for the Task-6 save file if it uses a different key than the coefficients.
+
+---
+## ★ SOLVED (2026-07-22)
+S-box search → AES core → AES_set_decrypt_key=FUN_00f04fec → sole caller **FUN_00f04480** = coefficient decrypt wrapper.
+Key+IV hardcoded ASCII (why the entropy byte-scan missed them):
+- **AES-128-CBC**
+- key = `9u#Kb96D54$tX,]!`  (hex `3975234b6239364435342474582c5d21`)
+- iv  = `123456789ABCDEF+`  (hex `3132333435363738394142434445462b`)
+- plaintext = `json_text + 0x00 + PKCS7pad(16)`
+Verified 57/57 files → valid JSON + byte-identical re-encrypt.
