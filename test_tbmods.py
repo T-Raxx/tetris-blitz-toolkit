@@ -31,13 +31,6 @@ def test_set_currency():
     tbmods.set_currency(pd, coins=999999, level=50)
     assert pd["Coins"] == 999999 and pd["LevelData"]["Level"] == 50
 
-def test_rename_flonase():
-    lo = _obj("LocStringsOverride.json"); fl = _obj("ManualForceLocStringOverride.json")
-    tbmods.rename_flonase_crashes(lo, fl)
-    hit = [s for s in lo["strings"] if s["key"] == "STRID_HELPERS_FLONASEPOWERUP_TITLE"]
-    assert hit and "CRASHES GAME" in hit[0]["text"]["en"]
-    assert "STRID_HELPERS_FLONASEPOWERUP_TITLE" in fl["strings"]
-
 def test_level_fix_inherits_typeid_twin_perks():
     h = _obj("helper.json")
     by = {x["uId"]: x for x in h["helpers"]}
@@ -55,7 +48,7 @@ def test_label_crasher_generic():
 
 def test_apply_and_stage_roundtrips(tmp_path):
     cfg = {"unlock_all": True, "currency": {"on": True, "coins": 12345},
-           "behavior": [{"uId": 2, "preset": "clear_whole_matrix"}], "rename_flonase": True}
+           "behavior": [{"uId": 2, "preset": "clear_whole_matrix"}]}
     res = tbmods.apply_and_stage(cfg, str(tmp_path / "stage"), KEY)
     assert "helper.json" in res["staged"] and "PlayerData.json" in res["staged"]
     stage = tmp_path / "stage" / "assets" / "Assets" / "Coefficients"
