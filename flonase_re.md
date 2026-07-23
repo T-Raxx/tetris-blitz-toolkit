@@ -73,22 +73,58 @@ which is buried in large code-pointer tables with no clean RTTI and no string an
 (helper.json field names aren't in the `.so`); dynamic tracing is blocked by houdini x86 JIT. Not worth
 it — the vortex is the intended effect and shop identity is already preserved.
 
-## OPEN (deferred to 2026-07-23) — in-game Flonase assets
-Crash is fixed, but at typeId31 the **in-game** block sprite, HUD powerup icon, and effect visuals are
-all Mino Vortex (typeId-keyed native art). User wants Flonase's OWN in-game assets. Shop already shows
-Flonase; only gameplay is vortex.
+## OPEN (2026-07-23) — restore Flonase's OWN in-game effect (NOT the vortex clone)
 
-Tomorrow:
-1. Check whether Flonase in-game art even EXISTS (block sprite / HUD icon / effect sprites). Flonase's
-   `iconBasePath=helper_flonase` is a store sprite — likely NO unique in-game art (cut reskin). If none
-   exists, in-game vortex visuals are the only option → done as-is.
-2. If Flonase in-game assets exist: the real fix decouples asset-selection from effect-selection —
-   keep typeId37 (Flonase art) + native-patch ONLY the typeId→effect **factory** case 37 → new vortex
-   class. Blocker last hit: factory switch buried in code-ptr tables, no RTTI/string anchor
-   (helper field names absent from `.so`), houdini x86 JIT blocks dynamic tracing. Fresh angle to try:
-   trace the powerup-def registry (`DAT_016335f0`, built by `FUN_00545dcc`, looked up via
-   `FUN_00546db0`/`FUN_00546ce8`) — the def may carry an effect-factory/typeId field that's patchable,
-   OR find the activation switch from the piece-lock → effect-create path.
+### CORRECTION: Flonase HAS a full dedicated in-game asset set (yesterday's "no art" was WRONG)
+- `CocosScenes/Scene_Flonace/` : `Layer_FlonaceFx.csb` + `flonase_PU_vfx1..6.plist` (particle emitters,
+  each referencing texture `flonase_PU_vfx{N}.png`).
+- `imagesSize{150,200}_GamePowerupsFlonase.db` + `...FlonaseAdditive.db` (in-game sprites, 166KB —
+  BIGGER than MinoVortex's 56KB db).
+- Sounds: `SFX_FLN_MinoPlacement_01..12`, `SFX_FLN_VortexEffect_01`, `SFX_FLN_MinoSwishFast/Slow`.
+- `Common0.plist` frames: `Flonase_TagBar.png` (in-play HUD tag) + `flonase.png`.
+- **Spelling inconsistency (suspicious, mirrors numMinos/NumMinos):** folder + csb = "Flona**c**e"
+  (`Scene_Flonace`, `Layer_FlonaceFx.csb`) but the vfx plists + store sprite = "flona**s**e".
+- Asset generations: OLD powerups use `CocosScenes/Scene_X` + `imagesSize_GamePowerupsX.db`
+  (Flonace, Spooky, SuperNova, MinoVortex-db, MinoRain, GoldenMino). NEW powerups use
+  `Cocos2dxImages/.../PowerUps/X/` (Rocket, Bolt, Cupid, Bday, BDay421). Flonase = OLD style.
+
+### Revised strategy: keep typeId37 + Flonase assets; fix the crash at its source
+Flonase's OLD vortex effect (`FUN_009f3e84` class, reads `numMinos`) crashes — most likely loading an
+asset by a path whose spelling/name doesn't match the shipped files (Flonase vs Flonace, or a missing
+`flonase_PU_vfx*.png` texture) → null → the garbage `1` deref (fault 0x19).
+
+NEXT (needs Ghidra reconnected — MCP was down 2026-07-23 AM):
+1. In the OLD effect class (`FUN_009f3e84` + its update/render methods), find the asset-load calls
+   (Scene/csb/plist/db path strings) and see the EXACT spelling the code expects.
+2. Compare to shipped files. If mismatch → **fix is an ASSET rename/duplication (no native patch)**:
+   ship both spellings (Scene_Flonace + Scene_Flonase, Layer_Flona{c,s}eFx.csb) so the code finds it.
+3. If the load path is fine but the effect still derefs null → native patch the crashing instruction.
+4. Verify Flonase's vfx textures (`flonase_PU_vfx1..6.png`) actually exist (in the .db or loose) — a
+   missing particle texture is a strong crash candidate.
+
+### Deferred fallback (if the old effect is unsalvageable)
+The typeId31 clone (data reroute, `tbmods.fix_flonase`) already ships crash-free (shop=Flonase,
+in-play=vortex). Keep as fallback. The native factory-reroute path (typeId37→new effect) is the
+identity-swap alternative; factory switch buried in code-ptr tables (no RTTI/string anchor,
+helper field names absent from `.so`, houdini blocks dynamic trace). Fresh angle: powerup-def registry
+`DAT_016335f0` (`FUN_00545dcc` build / `FUN_00546db0` lookup) or the piece-lock→effect-create switch.
+
+### Broader goal (2026-07-23): fix MANY powerup crashes
+Multiple cut/pre-2016 powerups: some crash (Flonase), some "don't work but don't crash" (load but no
+effect). Likely same class of bug (old-effect asset-path/code mismatches). Plan: enumerate all
+powerups, classify effect-class health (works / no-op / crashes), fix crashers first. Needs Ghidra.
+
+## Bottle cosmetic gap (2026-07-23) — SHELVED, not worth chasing
+Flonase restored + live: no crash, real vortex effect, particles, "FLONASE PARA GANAR" banner all
+render. Only the nasal-spray **bottle** sprite (`Image_FlonaseBottle`) does not appear. Ruled out asset
+availability: supplied the bottle as (1) loose `flonase_Bottle_idle.png` (exact `.csb` casing, valid
+search path `Assets/CocosScenes/` per `FUN_00cb0814`), (2) regenerated `Scene_Flonace.plist`+`.png`
+atlas frame (both casings) — the cut file `FUN_009f28fc` loads via `addSpriteFramesWithFile`. ALL failed
+while the same `.csb`'s Text + particle-panel widgets render fine → the bottle is suppressed by CODE
+(per-widget visibility via `FUN_009f28fc`'s `(*bottleWidget+0x50)` calls / an animation timeline that
+never fires for cut content), NOT a missing asset. Fixing = deep RE of `CocosLayerFlonaseView`/
+`FlonaseAnimationView` widget-visibility + native-patch the reveal, houdini-blocked, for one decorative
+sprite. Decision: SHIP AS-IS. logcat is dead under MuMu (release build logs nothing, buffer empty).
 
 ## Status (superseded)
 Flonase crash = **FIXED** via data reroute (no crash, live-verified). Above is the open in-game-asset
