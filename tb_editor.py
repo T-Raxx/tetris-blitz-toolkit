@@ -1,8 +1,9 @@
 import sys, pathlib, json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter)
+    QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter,
+    QScrollArea)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab, tbrawview
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -30,10 +31,11 @@ class Editor(QMainWindow):
         self._load_local_list()
         self.files.itemActivated.connect(lambda it: self.open_local(str(COEFF_DIR / it.text())))
 
-        self.raw = QPlainTextEdit(); self.raw.setTabStopDistance(28)
+        self.raw = tbrawview.RawJsonView()
         self.tabs = QTabWidget()
         self.smart_holder = QWidget(); self.smart_holder.setLayout(QVBoxLayout())
-        self.tabs.addTab(self.smart_holder, "Smart")
+        smart_scroll = QScrollArea(); smart_scroll.setWidgetResizable(True); smart_scroll.setWidget(self.smart_holder)
+        self.tabs.addTab(smart_scroll, "Smart")
         self.tabs.addTab(self.raw, "Raw JSON")
         self._discovery = None
         self._disc_placeholder = QWidget()
@@ -104,12 +106,15 @@ class Editor(QMainWindow):
             except Exception as e: QMessageBox.warning(self, "Save failed", str(e))
 
     def _maybe_build_discovery(self, idx):
-        if self.tabs.tabText(idx) != "Discovery" or self._discovery is not None:
+        if self.tabs.tabText(idx) != "Discovery":
             return
-        self.status.setText("building discovery catalog…"); QApplication.processEvents()
-        self._discovery = tbdiscovertab.DiscoveryTab()
-        self.tabs.removeTab(idx); self.tabs.insertTab(idx, self._discovery, "Discovery")
-        self.tabs.setCurrentIndex(idx); self.status.setText("discovery ready")
+        if self._discovery is None:
+            self.status.setText("building discovery catalog…"); QApplication.processEvents()
+            self._discovery = tbdiscovertab.DiscoveryTab()
+            self.tabs.removeTab(idx); self.tabs.insertTab(idx, self._discovery, "Discovery")
+            self.tabs.setCurrentIndex(idx)
+        self._discovery.ensure_fresh()   # auto-rebuild on open when stale
+        self.status.setText("discovery ready")
 
     def _rebuild_smart(self):
         holder = self.smart_holder.layout()

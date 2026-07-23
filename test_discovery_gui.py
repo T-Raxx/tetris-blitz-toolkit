@@ -7,4 +7,4 @@ def test_discovery_tab_loads_cards():
     app = QApplication.instance() or QApplication([])
     w = tbdiscovertab.DiscoveryTab()          # builds catalog on first run
     assert len(w.findings) > 100
-    assert w.grid.count() > 0
+    assert w.assets.grid.count() > 0 and w.sounds.grid.count() > 0   # both sub-views populated
