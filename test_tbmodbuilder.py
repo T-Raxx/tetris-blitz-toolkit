@@ -26,11 +26,12 @@ def test_core_group_disabled_is_empty():
     t.core_on.setChecked(False)
     assert t._build_config()["core_mechanics"] == {}
 
-def test_fix_flonase_checkbox_in_config():
+def test_restore_flonase_checkbox_in_config():
     t = _tab()
-    assert t._build_config()["fix_flonase"] is False
-    t.fix_flonase_cb.setChecked(True)
-    assert t._build_config()["fix_flonase"] is True
+    assert t._build_config()["restore_flonase"] is False
+    assert "fix_flonase" not in t._build_config()
+    t.restore_flonase_cb.setChecked(True)
+    assert t._build_config()["restore_flonase"] is True
 
 def test_behavior_param_labels_are_human():
     t = _tab()
