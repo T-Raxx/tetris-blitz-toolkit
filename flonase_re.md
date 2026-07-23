@@ -73,5 +73,23 @@ which is buried in large code-pointer tables with no clean RTTI and no string an
 (helper.json field names aren't in the `.so`); dynamic tracing is blocked by houdini x86 JIT. Not worth
 it — the vortex is the intended effect and shop identity is already preserved.
 
+## OPEN (deferred to 2026-07-23) — in-game Flonase assets
+Crash is fixed, but at typeId31 the **in-game** block sprite, HUD powerup icon, and effect visuals are
+all Mino Vortex (typeId-keyed native art). User wants Flonase's OWN in-game assets. Shop already shows
+Flonase; only gameplay is vortex.
+
+Tomorrow:
+1. Check whether Flonase in-game art even EXISTS (block sprite / HUD icon / effect sprites). Flonase's
+   `iconBasePath=helper_flonase` is a store sprite — likely NO unique in-game art (cut reskin). If none
+   exists, in-game vortex visuals are the only option → done as-is.
+2. If Flonase in-game assets exist: the real fix decouples asset-selection from effect-selection —
+   keep typeId37 (Flonase art) + native-patch ONLY the typeId→effect **factory** case 37 → new vortex
+   class. Blocker last hit: factory switch buried in code-ptr tables, no RTTI/string anchor
+   (helper field names absent from `.so`), houdini x86 JIT blocks dynamic tracing. Fresh angle to try:
+   trace the powerup-def registry (`DAT_016335f0`, built by `FUN_00545dcc`, looked up via
+   `FUN_00546db0`/`FUN_00546ce8`) — the def may carry an effect-factory/typeId field that's patchable,
+   OR find the activation switch from the piece-lock → effect-create path.
+
 ## Status (superseded)
-Flonase crash = **FIXED** via data reroute. The old section-injection cave notes below are historical.
+Flonase crash = **FIXED** via data reroute (no crash, live-verified). Above is the open in-game-asset
+follow-up. The old section-injection cave notes below are historical.
