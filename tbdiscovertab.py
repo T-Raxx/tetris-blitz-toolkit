@@ -44,6 +44,7 @@ class DiscoveryTab(QWidget):
         if not d:
             return
         res = self._extract_all_dir(d)
+        self._rebuild()   # refresh catalog (incl. db_asset findings) + cards after extracting
         QMessageBox.information(self, "Extract all images",
             f"{res['count']} images\n"
             f"db={res['by_type']['db']} atlas={res['by_type']['atlas']} loose={res['by_type']['loose']}\n"
