@@ -1,5 +1,5 @@
 import json, re, pathlib, plistlib
-import tbassets
+import tbassets, tbatlas
 
 ASSETS = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets"
 COCOS = ASSETS / "Cocos2dxImages" / "size150"
@@ -120,7 +120,25 @@ def _counts(findings):
         c[f["category"]] = c.get(f["category"], 0) + 1
     return c
 
-def build_catalog(cache_dir="discovery_cache"):
+def detect_db_assets(cache_dir, assets_dir=tbatlas.ASSETS):
+    cache = pathlib.Path(cache_dir) / "thumbnails"; cache.mkdir(parents=True, exist_ok=True)
+    out = []
+    for db in tbatlas.list_db_banks(assets_dir):
+        data = db.read_bytes()
+        try:
+            frames = tbatlas.parse_frames(data); atlas = tbatlas.atlas_image(data)
+        except Exception:
+            continue
+        stem = db.stem
+        for name, (x, y, w, h) in frames.items():
+            thumb = cache / f"db_{stem}_{name}.png"
+            atlas.crop((x, y, x + w, y + h)).save(thumb)
+            out.append({"category": "db_asset", "id": f"db_{stem}_{name}", "title": name,
+                        "status": "packed", "source_file": db.name,
+                        "sprites": [name], "thumbs": [str(thumb)]})
+    return out
+
+def build_catalog(cache_dir="discovery_cache", include_db=True):
     cache = pathlib.Path(cache_dir); (cache / "thumbnails").mkdir(parents=True, exist_ok=True)
     idx = atlas_index(); refs = reference_tokens()
     disabled = detect_disabled_powerups()
@@ -150,6 +168,8 @@ def build_catalog(cache_dir="discovery_cache"):
     for f in findings:
         f["thumbs"] = [thumb[s.split("/")[-1]] for s in f["sprites"] if s.split("/")[-1] in thumb]
 
+    if include_db:
+        findings = findings + detect_db_assets(cache_dir)
     catalog = {"counts": _counts(findings), "findings": findings}
     (cache / "catalog.json").write_text(json.dumps(catalog, indent=1), encoding="utf-8")
     return catalog
