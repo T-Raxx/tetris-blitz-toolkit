@@ -81,6 +81,18 @@ def all_powerups_free(helper):
             if k in x:
                 x[k] = 99
 
+def unlock_everything(helper, shopitems):
+    """Show + unlock + free EVERY powerup and finisher (all helper entries), and mark every shop
+    product available. type==1 entries are finishers, type==0 powerups — this covers both."""
+    for x in helper["helpers"]:
+        x["active"] = 1; x["unlockedByDefault"] = True; x["promotion"] = False; x["price"] = 0
+        for k in ("numFreeUses", "numFreePOWUses", "numFreePurchaseUses"):
+            if k in x:
+                x[k] = 99
+    level_fix(helper)                              # perks for anything newly activated
+    for p in (shopitems.get("products") or []):
+        p["available"] = 1
+
 def set_currency(playerdata, coins=None, premium=None, shards=None, spins=None, level=None, xp=None):
     for k, v in {"Coins": coins, "PremiumCoins": premium, "Spins": spins, "XP": xp}.items():
         if v is not None and k in playerdata:
@@ -158,6 +170,9 @@ def apply_and_stage(config, stage_dir="mod_stage", key=None):
         show_hidden_powerups(get("helper.json").obj); applied.append("show_hidden")
     if config.get("all_free"):
         all_powerups_free(get("helper.json").obj); applied.append("all_free")
+    if config.get("unlock_everything"):
+        unlock_everything(get("helper.json").obj, get("ShopItems.json").obj)
+        applied.append("unlock_everything")
     if config.get("restore_flonase"):
         enable_flonase(get("helper.json").obj)
         restore_flonase_assets(stage_dir)

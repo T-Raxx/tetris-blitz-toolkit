@@ -42,6 +42,9 @@ class ModBuilderTab(QWidget):
 
     def _globals_group(self):
         g = QGroupBox("Powerups — global"); lay = QVBoxLayout(g)
+        self.unlock_everything = QCheckBox("Unlock everything (powerups + finishers + shop)")
+        self.unlock_everything.setToolTip("Shows + unlocks + frees every powerup AND finisher (incl. "
+                                          "hidden/disabled), and marks every shop product available.")
         self.unlock_all = QCheckBox("Unlock all powerups")
         self.show_hidden = QCheckBox("Show hidden powerups (+ level fix)")
         self.all_free = QCheckBox("All powerups free")
@@ -49,7 +52,8 @@ class ModBuilderTab(QWidget):
         self.restore_flonase_cb.setToolTip("Enables Flonase with its own effect (typeId37) and "
                                            "restores its cut in-game assets (bottle, banner, particle "
                                            "VFX) extracted from the game's .db bank.")
-        for c in (self.unlock_all, self.show_hidden, self.all_free, self.restore_flonase_cb):
+        for c in (self.unlock_everything, self.unlock_all, self.show_hidden, self.all_free,
+                  self.restore_flonase_cb):
             lay.addWidget(c)
         return g
 
@@ -165,7 +169,8 @@ class ModBuilderTab(QWidget):
         if self.core_on.isChecked():
             for k, b in self.core_fields.items():
                 core[k] = b.value()
-        return {"currency": cur, "unlock_all": self.unlock_all.isChecked(),
+        return {"currency": cur, "unlock_everything": self.unlock_everything.isChecked(),
+                "unlock_all": self.unlock_all.isChecked(),
                 "show_hidden": self.show_hidden.isChecked(), "all_free": self.all_free.isChecked(),
                 "behavior": list(self.behavior),
                 "coin_awards": {"on": self.coin_on.isChecked(), "multiplier": self.coin_mult.value()},
