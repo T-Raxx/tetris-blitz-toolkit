@@ -58,6 +58,8 @@ class RestoreTab(QWidget):
         self.cards.append((c["uId"], cb))
         return box
 
+    def selection(self):
+        return [uid for uid, cb in self.cards if cb.isChecked()]
+
     def _restore(self):
-        ids = [uid for uid, cb in self.cards if cb.isChecked()]
-        self.on_build(ids)
+        self.on_build(self.selection())

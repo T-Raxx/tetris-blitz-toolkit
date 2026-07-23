@@ -63,11 +63,15 @@ class NativeTab(QWidget):
         self._param_get[pid] = (prm["name"], getter)
         return pr
 
-    def _apply(self):
+    def selection(self):
         ids = [pid for pid, cb in self.boxes if cb.isChecked()]
         values = {}
         for pid in ids:
             if pid in self._param_get:
                 name, getter = self._param_get[pid]
                 values[pid] = {name: getter()}
+        return ids, values
+
+    def _apply(self):
+        ids, values = self.selection()
         self.on_build(ids, values)

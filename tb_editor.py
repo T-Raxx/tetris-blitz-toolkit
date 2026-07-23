@@ -40,9 +40,13 @@ class Editor(QMainWindow):
         self._discovery = None
         self._disc_placeholder = QWidget()
         self.tabs.addTab(self._disc_placeholder, "Discovery")
-        self.tabs.addTab(tbmodbuilder.ModBuilderTab(self.key, self._on_mod_build), "Mod Builder")
-        self.tabs.addTab(tbrestoretab.RestoreTab(self.key, self._on_restore_build), "Restore")
-        self.tabs.addTab(tbnativetab.NativeTab(self._on_native_build), "Native")
+        self.mod_tab = tbmodbuilder.ModBuilderTab(self.key, self._on_mod_build)
+        self.restore_tab = tbrestoretab.RestoreTab(self.key, self._on_restore_build)
+        self.native_tab = tbnativetab.NativeTab(self._on_native_build)
+        self.tabs.addTab(self.mod_tab, "Mod Builder")
+        self.tabs.addTab(self.restore_tab, "Restore")
+        self.tabs.addTab(self.native_tab, "Native")
+        self._staged = {}          # rel-path -> bytes, for files staged via "Stage for build"
         self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
         openb = QPushButton("Open…"); openb.clicked.connect(self._open_dialog)
@@ -52,6 +56,8 @@ class Editor(QMainWindow):
 
         stageb = QPushButton("Stage for build"); stageb.clicked.connect(self._stage_current)
         buildb = QPushButton("Build & Install APK"); buildb.clicked.connect(self._build_install)
+        buildb.setToolTip("Applies EVERYTHING selected across all tabs (staged files + Mod Builder + "
+                          "Native patches + Restore) into one fresh build.")
         top = QHBoxLayout()
         for wdg in (openb, saveb, self.pullb, self.pushb, stageb, buildb, QLabel("fmt:"), self.badge):
             top.addWidget(wdg)
@@ -177,57 +183,48 @@ class Editor(QMainWindow):
                                 "(device saves use Push)."); return
         dest = pathlib.Path(self.mod_stage) / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(tbfiles.dump_bytes(self.current))
+        data = tbfiles.dump_bytes(self.current)
+        dest.write_bytes(data)
+        self._staged[rel.as_posix()] = data          # remember for the unified build
         n = sum(1 for p in pathlib.Path(self.mod_stage).rglob("*") if p.is_file())
         self.status.setText(f"staged {rel.name} ({n} file(s) in build)")
 
+    def _stage_all(self):
+        """Fresh mod_stage with EVERYTHING selected across tabs: staged files + Mod Builder config +
+        Native patches + Restore. Returns the applied-labels list."""
+        import shutil
+        if pathlib.Path(self.mod_stage).exists():
+            shutil.rmtree(self.mod_stage)
+        applied = []
+        for rel, data in self._staged.items():        # re-stage manual file edits (matrix etc)
+            dest = pathlib.Path(self.mod_stage) / rel
+            dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(data)
+            applied.append(f"file:{pathlib.Path(rel).name}")
+        applied += tbmods.apply_and_stage(self.mod_tab._build_config(), self.mod_stage, self.key)["applied"]
+        ids, vals = self.native_tab.selection()
+        if ids:
+            applied += tbnative.stage_native(ids, tbnative.load_patches(), self.mod_stage, values=vals)["applied"]
+        uIds = self.restore_tab.selection()
+        if uIds:
+            applied += [f"restore:{u}" for u in tbrestore.apply_restore(uIds, self.mod_stage, self.key)["restored"]]
+        return applied
+
     def _build_install(self):
-        self.status.setText("building + signing + installing…"); QApplication.processEvents()
+        """The main build: applies everything selected across all tabs into one fresh build."""
+        self.status.setText("staging all tabs + building…"); QApplication.processEvents()
         try:
+            applied = self._stage_all()
             res = tbbuild.build_sign_install(self.mod_stage)
         except Exception as e:
             QMessageBox.warning(self, "Build failed", str(e)); return
         QMessageBox.information(self, "Build & Install",
-            f"installed = {res['installed']}\n\n{res['log'][-500:]}")
+            f"applied ({len(applied)}): {applied}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
         self.status.setText("installed ✓" if res["installed"] else "install failed")
 
-    def _on_mod_build(self, config):
-        self.status.setText("applying mods + building…"); QApplication.processEvents()
-        try:
-            staged = tbmods.apply_and_stage(config, self.mod_stage, self.key)
-            res = tbbuild.build_sign_install(self.mod_stage)
-        except Exception as e:
-            QMessageBox.warning(self, "Mod build failed", str(e)); return
-        QMessageBox.information(self, "Mod Builder",
-            f"applied: {staged['applied']}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
-        self.status.setText("mods installed ✓" if res["installed"] else "install failed")
-
-    def _on_native_build(self, ids, values=None):
-        if not ids:
-            QMessageBox.information(self, "Native", "No patches selected."); return
-        self.status.setText("patching .so + building…"); QApplication.processEvents()
-        try:
-            staged = tbnative.stage_native(ids, tbnative.load_patches(), self.mod_stage, values=values)
-            build = tbbuild.build_sign_install(self.mod_stage)
-        except Exception as e:
-            QMessageBox.warning(self, "Native build failed", str(e)); return
-        QMessageBox.information(self, "Native",
-            f"applied: {staged['applied']}\ninstalled = {build['installed']}\n\n{build['log'][-300:]}")
-        self.status.setText("native patched ✓" if build["installed"] else "install failed")
-
-    def _on_restore_build(self, uIds):
-        if not uIds:
-            QMessageBox.information(self, "Restore", "No items selected."); return
-        self.status.setText("restoring + building…"); QApplication.processEvents()
-        try:
-            res = tbrestore.apply_restore(uIds, self.mod_stage, self.key)
-            build = tbbuild.build_sign_install(self.mod_stage)
-        except Exception as e:
-            QMessageBox.warning(self, "Restore build failed", str(e)); return
-        QMessageBox.information(self, "Restore",
-            f"restored: {res['restored']}\ncrashers labeled: {res['labeled_crashers']}\n"
-            f"installed = {build['installed']}\n\n{build['log'][-300:]}")
-        self.status.setText("restored ✓" if build["installed"] else "install failed")
+    # Every tab's "Apply + Build & Install" performs the SAME unified build (all tabs' selections).
+    def _on_mod_build(self, config=None): self._build_install()
+    def _on_native_build(self, ids=None, values=None): self._build_install()
+    def _on_restore_build(self, uIds=None): self._build_install()
 
     def _verify_roundtrip(self):
         if not self.current: return
