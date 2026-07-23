@@ -55,9 +55,11 @@ Revisit these for the Task-6 save file if it uses a different key than the coeff
 ---
 ## ★ SOLVED (2026-07-22)
 S-box search → AES core → AES_set_decrypt_key=FUN_00f04fec → sole caller **FUN_00f04480** = coefficient decrypt wrapper.
-Key+IV hardcoded ASCII (why the entropy byte-scan missed them):
+Key+IV are hardcoded ASCII strings (which is why an entropy byte-scan misses them):
 - **AES-128-CBC**
-- key = `9u#Kb96D54$tX,]!`  (hex `3975234b6239364435342474582c5d21`)
-- iv  = `123456789ABCDEF+`  (hex `3132333435363738394142434445462b`)
+- key = a 16-char ASCII string, iv = a 16-char ASCII string — both readable near `FUN_00f04480`.
 - plaintext = `json_text + 0x00 + PKCS7pad(16)`
+- **Extract them from YOUR OWN copy of the game.** Put them in a local `key.json`
+  (git-ignored) as `{"key": "<16-char>", "iv": "<16-char>"}`. The actual values are NOT
+  committed — this repo ships the method, not EA's key.
 Verified 57/57 files → valid JSON + byte-identical re-encrypt.

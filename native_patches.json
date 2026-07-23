@@ -1,17 +1,94 @@
-{ "patches": [
-  { "id": "powerup_pace_fixed", "name": "Fixed powerup spawn rate", "type": "inline", "status": "works",
-    "note": "Forces the powerup pace bag to a constant N pieces (1 powerup per N pieces ~= 100/N %/piece), ignoring the JSON value and Daily-Challenge overrides. Patches both board constructors.",
-    "param": { "name": "pace", "label": "1 powerup every N pieces", "default": 3, "min": 1, "max": 50 },
-    "writes": [
-      { "ghidra_addr": "0x00f44cb8", "orig": "c25e40b9", "asm": "mov w2, #{pace}" },
-      { "ghidra_addr": "0x00f4f9b0", "orig": "025c40b9", "asm": "mov w2, #{pace}" } ] },
-  { "id": "powerup_cap_removed", "name": "Remove on-board powerup cap", "type": "inline", "status": "works",
-    "note": "Removes the per-type on-board powerup limit (FUN_00f4e9dc cur<max gate) so the generator never returns 'no powerup'. Pair with a high spawn rate to saturate the matrix. Turns b.lt into an unconditional branch, skipping the -1.",
-    "writes": [
-      { "ghidra_addr": "0x00f4edbc", "orig": "4b000054", "patch": "02000014" } ] },
-  { "id": "fps_cap", "name": "FPS cap (uncap / raise)", "type": "inline", "status": "works",
-    "note": "Raises/removes the native 30fps frame limiter (FUN_00ca2450 @ 0xca2470). Engine is delta-time based, so higher fps is smooth with no speed change. 0 ms = uncapped.",
-    "param": { "name": "ms", "label": "target fps", "convert": "fps_to_ms", "min": 30, "max": 240, "default": 60 },
-    "writes": [
-      { "ghidra_addr": "0x00ca2470", "orig": "880240f9", "asm": "mov x8, #{ms}" } ] }
-] }
+{
+  "patches": [
+    {
+      "id": "powerup_pace_fixed",
+      "name": "Fixed powerup spawn rate",
+      "type": "inline",
+      "status": "works",
+      "note": "Forces the powerup pace bag to a constant N pieces (1 powerup per N pieces ~= 100/N %/piece), ignoring the JSON value and Daily-Challenge overrides. Patches both board constructors.",
+      "param": {
+        "name": "pace",
+        "label": "1 powerup every N pieces",
+        "default": 3,
+        "min": 1,
+        "max": 50
+      },
+      "writes": [
+        {
+          "ghidra_addr": "0x00f44cb8",
+          "orig": "c25e40b9",
+          "asm": "mov w2, #{pace}"
+        },
+        {
+          "ghidra_addr": "0x00f4f9b0",
+          "orig": "025c40b9",
+          "asm": "mov w2, #{pace}"
+        }
+      ]
+    },
+    {
+      "id": "powerup_cap_removed",
+      "name": "Remove on-board powerup cap",
+      "type": "inline",
+      "status": "works",
+      "note": "Removes the per-type on-board powerup limit (FUN_00f4e9dc cur<max gate) so the generator never returns 'no powerup'. Pair with a high spawn rate to saturate the matrix. Turns b.lt into an unconditional branch, skipping the -1.",
+      "writes": [
+        {
+          "ghidra_addr": "0x00f4edbc",
+          "orig": "4b000054",
+          "patch": "02000014"
+        }
+      ]
+    },
+    {
+      "id": "fps_cap",
+      "name": "FPS cap (uncap / raise)",
+      "type": "inline",
+      "status": "works",
+      "note": "Raises/removes the native 30fps frame limiter (FUN_00ca2450 @ 0xca2470). Engine is delta-time based, so higher fps is smooth with no speed change. 0 ms = uncapped.",
+      "param": {
+        "name": "ms",
+        "label": "target fps",
+        "convert": "fps_to_ms",
+        "min": 30,
+        "max": 240,
+        "default": 60
+      },
+      "writes": [
+        {
+          "ghidra_addr": "0x00ca2470",
+          "orig": "880240f9",
+          "asm": "mov x8, #{ms}"
+        }
+      ]
+    },
+    {
+      "id": "mino_gold_from_darkblue",
+      "name": "Golden cube minos (DarkBlue -> gold)",
+      "type": "inline",
+      "status": "wip",
+      "note": "Repoints the DarkBlue single-mino texture to the gold cube (MinoCubeYellow). Any 'n'/dark-blue mino \u2014 in finisher matrices AND normal gameplay \u2014 renders as a golden cube. Reversible.",
+      "writes": [
+        {
+          "ghidra_addr": "0x1154f2f",
+          "orig": "436f6d6d6f6e2f4d696e6f4461726b426c756553696e676c652e706e67",
+          "patch": "436f6d6d6f6e2f4d696e6f4375626559656c6c6f772e706e6700000000"
+        }
+      ]
+    },
+    {
+      "id": "mino_white_from_lightblue",
+      "name": "White cube minos (LightBlue -> white)",
+      "type": "inline",
+      "status": "wip",
+      "note": "Repoints the LightBlue single-mino texture to the white cube (MinoCubeWhite). Affects the 'B'/light-blue mino everywhere. Reversible.",
+      "writes": [
+        {
+          "ghidra_addr": "0x1154ed8",
+          "orig": "436f6d6d6f6e2f4d696e6f4c69676874426c756553696e676c652e706e67",
+          "patch": "436f6d6d6f6e2f4d696e6f4375626557686974652e706e67000000000000"
+        }
+      ]
+    }
+  ]
+}

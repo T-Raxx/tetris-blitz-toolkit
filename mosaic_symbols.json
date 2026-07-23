@@ -1,8 +1,18 @@
 {
+  "_re": "docs/mino_re.md — colors are per-finisher pixel-art palettes; +0xc is a small enum, char->enum is a single global loader (unlocated); enum->texture is per-finisher. Y/R/G confirmed, W=GiftTree brown trunk; B/L/N and lowercase are inferred (verify in-app). frame = Common-atlas frame when confident, else null -> colored swatch.",
   "colors": {
-    "Y": {"name": "Yellow"}, "R": {"name": "Red"}, "L": {"name": "Orange"},
-    "N": {"name": "Purple"}, "B": {"name": "LightBlue"}, "n": {"name": "DarkBlue"},
-    "m": {"name": "Green"}
+    "Y": {"name": "Yellow",     "enum": 0,    "frame": "Common/MinoYellowSingle.png",   "swatch": [240, 200, 40],  "conf": "confirmed"},
+    "R": {"name": "Red",        "enum": 6,    "frame": "Common/MinoRedSingle.png",      "swatch": [220, 60, 60],   "conf": "confirmed"},
+    "G": {"name": "Green",      "enum": 5,    "frame": "Common/MinoGreenSingle.png",    "swatch": [80, 190, 80],   "conf": "confirmed"},
+    "B": {"name": "LightBlue",  "enum": 1,    "frame": "Common/MinoLightBlueSingle.png","swatch": [70, 180, 230],  "conf": "inferred"},
+    "L": {"name": "Orange",     "enum": 3,    "frame": "Common/MinoOrangeSingle.png",   "swatch": [240, 140, 30],  "conf": "inferred"},
+    "N": {"name": "Purple",     "enum": 2,    "frame": "Common/MinoPurpleSingle.png",   "swatch": [150, 60, 200],  "conf": "inferred"},
+    "W": {"name": "Wood/Trunk", "enum": null, "frame": null,                            "swatch": [140, 90, 50],   "conf": "special", "note": "GiftTree brown trunk; finisher-own art, no generic enum"},
+    "m": {"name": "Magenta",    "enum": null, "frame": null,                            "swatch": [210, 60, 180],  "conf": "inferred", "note": "FlyingFlo palette"},
+    "n": {"name": "DarkBlue",   "enum": 4,    "frame": "Common/MinoDarkBlueSingle.png", "swatch": [40, 60, 140],   "conf": "inferred"},
+    "o": {"name": "Cake-Orange","enum": null, "frame": null,                            "swatch": [230, 150, 50],  "conf": "inferred", "note": "BirthdayCake palette"},
+    "r": {"name": "Cake-Red",   "enum": null, "frame": null,                            "swatch": [200, 70, 70],   "conf": "inferred", "note": "BirthdayCake palette"},
+    "w": {"name": "Cake-White", "enum": null, "frame": null,                            "swatch": [235, 230, 215], "conf": "inferred", "note": "BirthdayCake palette"}
   },
   "tags": {
     "1": {"name": "Quake", "frame": "Common/helper_quake.png"},
@@ -17,11 +27,16 @@
     "A": {"name": "MinoRain", "frame": "Common/finisher_minoRain.png"},
     "B": {"name": "Lucky7", "frame": "Common/helper_lucky7.png"},
     "C": {"name": "TrippleI", "frame": "Common/helper_trippleI.png"},
-    "D": {"name": "Multiplier", "frame": "Common/helper_multiplyer.png"},
-    "E": {"name": "Narrow", "frame": "Common/helper_narrow.png"},
-    "F": {"name": "Crusher", "frame": "Common/helper_crusher.png"},
-    "p": {"name": "Special p", "frame": null},
-    "s": {"name": "Special s", "frame": null}
+    "p": {"name": "Progressive (box-clear)", "frame": null, "note": "POWERUP_PROGRESSIVE_BOXCLEAR — background mino, not a placeable powerup"},
+    "s": {"name": "Progressive (vortex)", "frame": null, "note": "POWERUP_PROGRESSIVE_VORTEX — background mino"}
   },
-  "groups": {}
+  "groups": {},
+  "finishers": {
+    "SuperNova":       {"colors": "BLNRY", "tags": "456789ABC"},
+    "GiftTree":        {"colors": "GWY",   "tags": "123456ABC"},
+    "BirthdayCake":    {"colors": "norw",  "tags": "123ABC"},
+    "BlitzinMatrix":   {"colors": "RY",    "tags": ""},
+    "FlyingFloMatrix": {"colors": "mn",    "tags": "ps"},
+    "PowerShower":     {"colors": "BLN",   "tags": "ABC"}
+  }
 }

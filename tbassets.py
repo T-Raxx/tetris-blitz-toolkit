@@ -6,17 +6,27 @@ COCOS = ASSETS / "Cocos2dxImages" / "size150" / "Common"
 PLIST = COCOS / "Common0.plist"
 ATLAS = COCOS / "Common0.png"
 
-LETTER_COLOR = {
-    "Y": (240, 200, 40), "L": (240, 140, 30), "N": (150, 60, 200),
-    "B": (50, 110, 230), "R": (220, 60, 60), "m": (210, 60, 180), "n": (40, 60, 140),
-}
+def _color_syms():
+    import tbmosaic
+    return tbmosaic.symbols("colors")
+
+def color_swatch_map():
+    """char -> (r,g,b) swatch, from mosaic_symbols.json (data-driven)."""
+    return {ch: tuple(m["swatch"]) for ch, m in _color_syms().items() if m.get("swatch")}
+
+def color_frame_map():
+    """char -> Common-atlas frame name, for the chars that have a confident real texture."""
+    return {ch: m["frame"] for ch, m in _color_syms().items() if m.get("frame")}
+
+# Back-compat aliases (were hardcoded; now derived from the RE'd symbol table).
+def _letter_color():
+    return color_swatch_map()
+LETTER_COLOR = _letter_color()
+BLOCK_FRAMES = sorted(set(color_frame_map().values()))
+
 POWERUP_NAME = {"4": "Bombs", "5": "MeteorStorm", "6": "Magnet", "7": "Blockade",
                 "8": "Inversion", "9": "InstantReplay", "A": "MinoRain",
                 "B": "LuckySeven", "C": "ThreeStrikes"}
-
-BLOCK_FRAMES = ["Common/MinoYellowSingle.png", "Common/MinoRedSingle.png",
-    "Common/MinoDarkBlueSingle.png", "Common/MinoLightBlueSingle.png",
-    "Common/MinoGreenSingle.png", "Common/MinoOrangeSingle.png", "Common/MinoPurpleSingle.png"]
 POWERUP_FRAMES = {"4": "Common/helper_bomb.png", "5": "Common/helper_meteor.png",
     "6": "Common/helper_magnet.png", "7": "Common/helper_blockade.png",
     "8": "Common/finisher_inversion.png", "9": "Common/finisher_rewind.png",
@@ -98,10 +108,14 @@ def extract_named(cache_dir, names, plist=PLIST, atlas=ATLAS):
         sub.save(p); out[name] = str(p)
     return out
 
-def block_sprite_map(cache_dir, letters="YLNBRmn"):
-    """Extract the block minos and map each letter to its nearest-color sprite path."""
-    extracted = extract_named(cache_dir, BLOCK_FRAMES)
-    return auto_map_blocks(list(extracted.values()), letters) if extracted else {}
+def block_sprite_map(cache_dir, letters=None):
+    """char -> extracted PNG path for every color char that has a confident real frame
+    in mosaic_symbols.json (direct mapping, not color-guessing). `letters` optionally filters."""
+    frames = color_frame_map()                     # char -> frame name
+    if letters is not None:
+        frames = {ch: fr for ch, fr in frames.items() if ch in letters}
+    got = extract_named(cache_dir, list(dict.fromkeys(frames.values())))   # frame -> path
+    return {ch: got[fr] for ch, fr in frames.items() if fr in got}
 
 def powerup_icon_map(cache_dir):
     """Extract powerup icons; return tag-char -> path for those present."""

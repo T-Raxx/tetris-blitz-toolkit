@@ -26,6 +26,7 @@ def ensure_keystore(path="build/debug.keystore"):
 def build_apk(stage_dir="mod_stage", out_apk="build/tb-modded-unsigned.apk", src=SRC):
     src = pathlib.Path(src); stage = pathlib.Path(stage_dir)
     out = pathlib.Path(out_apk); out.parent.mkdir(parents=True, exist_ok=True)
+    seen = set()
     with zipfile.ZipFile(out, "w") as z:
         for f in sorted(src.rglob("*")):
             if not f.is_file():
@@ -37,7 +38,17 @@ def build_apk(stage_dir="mod_stage", out_apk="build/tb-modded-unsigned.apk", src
             data = override.read_bytes() if override.exists() else f.read_bytes()
             zi = zipfile.ZipInfo(rel)
             zi.compress_type = zipfile.ZIP_STORED if _stored(rel) else zipfile.ZIP_DEFLATED
-            z.writestr(zi, data)
+            z.writestr(zi, data); seen.add(rel)
+        # add mod_stage-only files (restored/new assets not in the base tree)
+        for f in sorted(stage.rglob("*")):
+            if not f.is_file():
+                continue
+            rel = f.relative_to(stage).as_posix()
+            if rel in seen or rel.startswith("META-INF/"):
+                continue
+            zi = zipfile.ZipInfo(rel)
+            zi.compress_type = zipfile.ZIP_STORED if _stored(rel) else zipfile.ZIP_DEFLATED
+            z.writestr(zi, f.read_bytes())
     return str(out)
 
 def _uber_sign(apk):

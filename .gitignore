@@ -18,3 +18,21 @@ discovery_cache/
 mod_stage/
 build/
 restore_status.json
+# EA-copyright assets extracted from the game — never publish
+DB_assets/
+DB_assets*/
+*.db
+# personal device save (point TB_SAVE_DIR at your own pulled save)
+save/
+save_PlayerData.json
+save_PlayerData.bin
+# built APKs / signing tools / local env
+dist/
+apkbuilder/dist/
+apkbuilder/tools/
+*.apk
+*.keystore
+env.txt
+docs/
+# process notes (superpowers specs/plans stay local)
+.claude/

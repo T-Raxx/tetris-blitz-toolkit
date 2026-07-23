@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter,
     QScrollArea)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab, tbrawview
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab, tbrawview, tbinject, tbinjecttab, tbsavetab
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -43,9 +43,13 @@ class Editor(QMainWindow):
         self.mod_tab = tbmodbuilder.ModBuilderTab(self.key, self._on_mod_build)
         self.restore_tab = tbrestoretab.RestoreTab(self.key, self._on_restore_build)
         self.native_tab = tbnativetab.NativeTab(self._on_native_build)
+        self.inject_tab = tbinjecttab.InjectTab(self._on_inject_build)
+        self.save_tab = tbsavetab.SaveTab(self.key)
         self.tabs.addTab(self.mod_tab, "Mod Builder")
         self.tabs.addTab(self.restore_tab, "Restore")
         self.tabs.addTab(self.native_tab, "Native")
+        self.tabs.addTab(self.inject_tab, "Inject")
+        self.tabs.addTab(self.save_tab, "Save")
         self._staged = {}          # rel-path -> bytes, for files staged via "Stage for build"
         self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
@@ -57,9 +61,12 @@ class Editor(QMainWindow):
         stageb = QPushButton("Stage for build"); stageb.clicked.connect(self._stage_current)
         buildb = QPushButton("Build & Install APK"); buildb.clicked.connect(self._build_install)
         buildb.setToolTip("Applies EVERYTHING selected across all tabs (staged files + Mod Builder + "
-                          "Native patches + Restore) into one fresh build.")
+                          "Native patches + Restore + Inject) into one fresh build, then installs via adb.")
+        redistb = QPushButton("Build Redistributable APK"); redistb.clicked.connect(self._build_redist)
+        redistb.setToolTip("Applies EVERY tab's mods, then produces a v2+ signed APK for real "
+                           "non-rooted hardware (does NOT install — share the file).")
         top = QHBoxLayout()
-        for wdg in (openb, saveb, self.pullb, self.pushb, stageb, buildb, QLabel("fmt:"), self.badge):
+        for wdg in (openb, saveb, self.pullb, self.pushb, stageb, buildb, redistb, QLabel("fmt:"), self.badge):
             top.addWidget(wdg)
         top.addStretch(1); top.addWidget(self.status)
 
@@ -134,7 +141,7 @@ class Editor(QMainWindow):
             self.raw.blockSignals(False)
             self.status.setText("edited (unsaved)")
         if tbmosaic.is_mosaic(self.current.obj):
-            holder.addWidget(tbassembler.Assembler(self.current, on_change))
+            holder.addWidget(tbassembler.Assembler(self.current, on_change, name=self.current_path))
         else:
             holder.addWidget(tbpanels.build_smart(self.current, on_change))
 
@@ -207,6 +214,9 @@ class Editor(QMainWindow):
         uIds = self.restore_tab.selection()
         if uIds:
             applied += [f"restore:{u}" for u in tbrestore.apply_restore(uIds, self.mod_stage, self.key)["restored"]]
+        injs = self.inject_tab.selection()
+        if injs:
+            applied += tbinject.stage_injections(injs, self.mod_stage)["applied"]
         return applied
 
     def _build_install(self):
@@ -221,10 +231,38 @@ class Editor(QMainWindow):
             f"applied ({len(applied)}): {applied}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
         self.status.setText("installed ✓" if res["installed"] else "install failed")
 
+    def _apkbuild_module(self):
+        """Import the standalone apkbuilder (repo subfolder; falls back to a sibling folder)."""
+        import sys as _sys
+        here = pathlib.Path(__file__).resolve().parent
+        for cand in (here / "apkbuilder", here.parent / "apkbuilder"):
+            if (cand / "apkbuild.py").exists():
+                if str(cand) not in _sys.path:
+                    _sys.path.insert(0, str(cand))
+                break
+        import apkbuild
+        return apkbuild
+
+    def _build_redist(self):
+        """Stage every tab's mods, then produce a v2+ signed redistributable APK (no install)."""
+        self.status.setText("staging all tabs + building redistributable APK…"); QApplication.processEvents()
+        try:
+            applied = self._stage_all()
+            apkbuild = self._apkbuild_module()
+            res = apkbuild.build(str(pathlib.Path(self.mod_stage).resolve()),
+                                 "dist/tetrisblitz-modded.apk")
+        except Exception as e:
+            QMessageBox.warning(self, "Redistributable build failed", str(e)); return
+        QMessageBox.information(self, "Redistributable APK",
+            f"applied ({len(applied)}): {applied}\n\nAPK: {res['apk']}\nsha256: {res['sha256']}\n"
+            f"signed(v1+v2+v3): {res['signed']}\n\nInstalable en hardware non-rooted. Compartí el archivo.")
+        self.status.setText("redistributable APK ready ✓" if res["signed"] else "APK built (unsigned)")
+
     # Every tab's "Apply + Build & Install" performs the SAME unified build (all tabs' selections).
     def _on_mod_build(self, config=None): self._build_install()
     def _on_native_build(self, ids=None, values=None): self._build_install()
     def _on_restore_build(self, uIds=None): self._build_install()
+    def _on_inject_build(self, injs=None): self._build_install()
 
     def _verify_roundtrip(self):
         if not self.current: return

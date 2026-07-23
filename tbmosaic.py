@@ -1,16 +1,65 @@
 import json, pathlib
 
-MOSAIC_FILES = {"SuperNova", "BlitzinMatrix", "FlyingFloMatrix"}
+MOSAIC_FILES = {"SuperNova", "BlitzinMatrix", "FlyingFloMatrix",
+                "GiftTree", "BirthdayCake", "PowerShower"}
 SYM_FILE = "mosaic_symbols.json"
 _sym_cache = None
 
-def symbols(layer, path=SYM_FILE):
-    """RE'd char tables per mosaic layer: {char: {name, frame?}}. 'colors' | 'tags' | 'groups'."""
+def _load(path=SYM_FILE):
     global _sym_cache
     if _sym_cache is None:
         p = pathlib.Path(path)
         _sym_cache = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-    return _sym_cache.get(layer, {})
+    return _sym_cache
+
+def symbols(layer, path=SYM_FILE):
+    """RE'd char tables per mosaic layer: {char: {name, frame?, ...}}. 'colors' | 'tags' | 'groups'."""
+    return _load(path).get(layer, {})
+
+def finisher_name(source):
+    """Best-effort finisher id from a filename/path/stem; None if not a known finisher."""
+    if not source:
+        return None
+    stem = pathlib.Path(str(source)).stem
+    fin = _load().get("finishers", {})
+    if stem in fin:
+        return stem
+    low = stem.lower()
+    for k in fin:
+        if k.lower() == low:
+            return k
+    return None
+
+def finisher_palette(name, layer="colors"):
+    """Chars a specific finisher's shipped grid uses for a layer (ordered). [] if unknown finisher."""
+    fin = _load().get("finishers", {}).get(name)
+    return list(fin.get(layer, "")) if fin else []
+
+def palette_for(source, grid, layer="colors"):
+    """Ordered brush chars to show for `layer`: the finisher's own set first (if known),
+    then any extra chars actually present in the grid, then remaining global symbols."""
+    order = []
+    def add(ch):
+        if ch != "." and ch not in order:
+            order.append(ch)
+    for ch in finisher_palette(finisher_name(source), layer):
+        add(ch)
+    used = color_palette(grid) if layer == "colors" else _used_chars(grid, layer)
+    for ch in used:
+        add(ch)
+    for ch in symbols(layer):
+        add(ch)
+    return order
+
+def _used_chars(grid, layer):
+    attr = {"colors": "color", "tags": "tag", "groups": "group"}[layer]
+    seen = []
+    for r in range(grid.rows):
+        for c in range(grid.cols):
+            ch = getattr(grid.cells[r][c], attr)
+            if ch != "." and ch not in seen:
+                seen.append(ch)
+    return seen
 
 class Cell:
     __slots__ = ("color", "tag", "group")
