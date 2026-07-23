@@ -49,9 +49,9 @@ if (type != -1) {
 return -1;                         // capped → this piece spawns NO powerup
 ```
 When all 3 bag types hit their max (sum ≈ 7 on board), every draw returns -1 → spawns stop until
-powerups clear → observed "hard cap ~7, then droprate returns to normal". The perceived ~50% ceiling at
-pace=1 is most likely emergent from this cap (steady-state spawn ≈ clear rate); no separate 50% gate was
-found in the generator.
+powerups clear → observed "hard cap ~7, then droprate returns to normal". **CONFIRMED live:** with
+`powerup_cap_removed` + pace=1 the matrix saturates at a true 100% drop rate with no ~7 wall — so the
+perceived ~50% ceiling was purely the cap's steady-state (spawn ≈ clear rate), NOT a separate gate.
 
 Cap-removal patch site (make the `cur < max` check always pass):
 | Ghidra addr | function | original | orig bytes | patched |
