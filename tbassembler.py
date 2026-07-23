@@ -1,11 +1,12 @@
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QComboBox, QScrollArea, QGroupBox)
-from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap
-from PyQt6.QtCore import Qt, QRect
+    QComboBox, QScrollArea, QGroupBox, QLineEdit)
+from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap, QIcon
+from PyQt6.QtCore import Qt, QRect, QSize
 import tbmosaic, tbassets
 
 CELL = 18            # px per cell in the editable canvas
 CACHE = "assets_cache"
+LAYER_KEY = {"color": "colors", "tag": "tags", "group": "groups"}
 
 def block_qcolor(ch):
     rgb = tbassets.LETTER_COLOR.get(ch)
@@ -83,7 +84,7 @@ class Assembler(QWidget):
         # Real game sprites; any failure (no Pillow / no atlas) -> empty maps -> swatch fallback.
         try:
             for ch, p in tbassets.block_sprite_map(CACHE).items(): self.block_px[ch] = QPixmap(p)
-            for ch, p in tbassets.powerup_icon_map(CACHE).items(): self.pu_px[ch] = QPixmap(p)
+            for ch, p in tbassets.tag_sprite_map(CACHE).items(): self.pu_px[ch] = QPixmap(p)
         except Exception:
             pass
 
@@ -95,20 +96,23 @@ class Assembler(QWidget):
         while lay.count():
             w = lay.takeAt(0).widget()
             if w: w.deleteLater()
-        if self.layer == "color":
-            opts = tbmosaic.color_palette(self.grid) or list("YLNBR")
-            labels = {ch: ch for ch in opts}
-        elif self.layer == "tag":
-            opts = list(tbassets.POWERUP_NAME.keys())
-            labels = {ch: f"{ch}  {tbassets.POWERUP_NAME[ch]}" for ch in opts}
-        else:
-            opts = []; labels = {}
-        for ch in opts + ["."]:
-            b = QPushButton(labels.get(ch, "erase (.)"))
+        syms = tbmosaic.symbols(LAYER_KEY[self.layer])            # full RE'd symbol set for this layer
+        pxmap = self.block_px if self.layer == "color" else self.pu_px
+        for ch, meta in syms.items():
+            b = QPushButton(f"{ch}  {meta.get('name', ch)}")
+            px = pxmap.get(ch)
+            if px and not px.isNull():
+                b.setIcon(QIcon(px)); b.setIconSize(QSize(18, 18))
+            b.setToolTip(meta.get("name", ch))
             b.clicked.connect(lambda _, v=ch: setattr(self, "brush", v))
             lay.addWidget(b)
-        if opts:
-            self.brush = opts[0]
+        er = QPushButton("erase (.)"); er.clicked.connect(lambda: setattr(self, "brush", "."))
+        lay.addWidget(er)
+        if not syms:                                             # e.g. groups: free single-char brush
+            le = QLineEdit(); le.setMaxLength(1); le.setPlaceholderText("custom char")
+            le.textChanged.connect(lambda t: setattr(self, "brush", t or "."))
+            lay.addWidget(le)
+        self.brush = next(iter(syms), ".")
 
     def paint_cell(self, r, c):
         cell = self.grid.cells[r][c]
