@@ -9,5 +9,9 @@
     "param": { "name": "pace", "label": "1 powerup every N pieces", "default": 3, "min": 1, "max": 50 },
     "writes": [
       { "ghidra_addr": "0x00f44cb8", "orig": "c25e40b9", "asm": "mov w2, #{pace}" },
-      { "ghidra_addr": "0x00f4f9b0", "orig": "025c40b9", "asm": "mov w2, #{pace}" } ] }
+      { "ghidra_addr": "0x00f4f9b0", "orig": "025c40b9", "asm": "mov w2, #{pace}" } ] },
+  { "id": "powerup_cap_removed", "name": "Remove on-board powerup cap", "type": "inline", "status": "works",
+    "note": "Removes the per-type on-board powerup limit (FUN_00f4e9dc cur<max gate) so the generator never returns 'no powerup'. Pair with a high spawn rate to saturate the matrix. Turns b.lt into an unconditional branch, skipping the -1.",
+    "writes": [
+      { "ghidra_addr": "0x00f4edbc", "orig": "4b000054", "patch": "02000014" } ] }
 ] }

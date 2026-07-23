@@ -23,3 +23,12 @@ def test_apply_patches_asm_values(tmp_path):
     b = pathlib.Path(out).read_bytes()
     assert b[0xf44cb8 - 0x100000:0xf44cb8 - 0x100000 + 4].hex() == "42008052"
     assert b[0xf4f9b0 - 0x100000:0xf4f9b0 - 0x100000 + 4].hex() == "42008052"
+
+def test_powerup_cap_removed_patch(tmp_path):
+    src = str(tbnative.SRC_SO)
+    patches = tbnative.load_patches()
+    assert any(p["id"] == "powerup_cap_removed" for p in patches)
+    out = tbnative.apply_patches(["powerup_cap_removed"], patches, src_so=src,
+                                 out_so=str(tmp_path / "o.so"))
+    b = pathlib.Path(out).read_bytes()
+    assert b[0xf4edbc - 0x100000:0xf4edbc - 0x100000 + 4].hex() == "02000014"

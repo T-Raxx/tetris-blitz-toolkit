@@ -36,6 +36,31 @@ constant bypasses both the JSON read and the DC override (the struct field is no
 
 File offset = Ghidra addr − 0x100000 (image_base 0x100000).
 
+## On-board powerup cap (the "~7 cap, then rate returns to normal")
+Separate from pace. The powerup **type** bag `FUN_00f4e9dc` (size `PowerUpBagSize=3`) picks which
+powerup to spawn, gated by a per-type on-board count limit:
+```c
+type = draw_from_type_bag();
+if (type != -1) {
+  cur = FUN_00f4ee54(gen, type);   // count of this type already on matrix + in queue
+  max = FUN_00f4bdd8(def);         // per-type max = *(int*)(def + 0x34)
+  if (cur < max) return type;      // allow
+}
+return -1;                         // capped → this piece spawns NO powerup
+```
+When all 3 bag types hit their max (sum ≈ 7 on board), every draw returns -1 → spawns stop until
+powerups clear → observed "hard cap ~7, then droprate returns to normal". The perceived ~50% ceiling at
+pace=1 is most likely emergent from this cap (steady-state spawn ≈ clear rate); no separate 50% gate was
+found in the generator.
+
+Cap-removal patch site (make the `cur < max` check always pass):
+| Ghidra addr | function | original | orig bytes | patched |
+|---|---|---|---|---|
+| `0x00f4edbc` | `FUN_00f4e9dc` | `b.lt f4edc4` | `4b000054` | `b f4edc4` (`02000014`, unconditional) |
+
+Implemented as native patch **powerup_cap_removed** (inline, fixed write). Pair with `powerup_pace_fixed`
+pace=1 to saturate the matrix.
+
 ## Implemented as
 Native patch `powerup_pace_fixed` in `native_patches.json` (type `inline`, two `asm` writes
 `mov w2, #{pace}`), applied by `tbnative.assemble_write` (keystone) with a per-patch `values` dict. The
