@@ -1,7 +1,10 @@
 import copy, pathlib
-import tbfiles, tbcrypt
+import tbfiles, tbcrypt, tbatlas
 
 COEFF = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
+FLONASE_DB = tbatlas.ASSETS / "imagesSize150_GamePowerupsFlonase.db"
+FLONASE_RENAME = {"flonase_bottle_idle": "flonase_Bottle_idle", "flonase_banner": "flonase_Banner",
+                  **{f"flonase_pu_vfx{i}": f"flonase_PU_vfx{i}" for i in range(1, 7)}}
 
 def _load(name, key):
     return tbfiles.load_path(str(COEFF / name), key)
@@ -32,25 +35,26 @@ def level_fix(helper):
             else:
                 x["perks"] = copy.deepcopy(stub)
 
-def fix_flonase(helper, src_uId=38, dst_uId=45):
-    """Reroute Flonase (uId45, typeId37) to Mino Vortex's working NEW vortex effect (typeId31).
-    typeId37 dispatches to the deprecated/broken OLD vortex effect (reads 'numMinos'); typeId31 to the
-    finished NEW effect (reads 'NumMinos'). Fix param casing, copy Mino Vortex perks, enable + free."""
+def enable_flonase(helper):
+    """Enable Flonase (uId45) with its OWN effect (keep typeId37) + free/unlocked. Its cut in-game
+    assets are restored separately by restore_flonase_assets()."""
     by = {x.get("uId"): x for x in helper["helpers"]}
-    dst = by.get(dst_uId); src = by.get(src_uId)
-    if not dst or not src:
+    fl = by.get(45); mv = by.get(38)
+    if not fl:
         return
-    dst["typeId"] = src.get("typeId")
-    params = dst.get("params")
-    if isinstance(params, dict) and "numMinos" in params and "NumMinos" not in params:
-        params["NumMinos"] = params.pop("numMinos")
-    if not dst.get("perks") and src.get("perks"):
-        dst["perks"] = copy.deepcopy(src["perks"])
-    dst["active"] = 1; dst["unlockedByDefault"] = True; dst["promotion"] = False
-    dst["price"] = 0
+    fl["active"] = 1; fl["unlockedByDefault"] = True; fl["promotion"] = False; fl["price"] = 0
     for k in ("numFreeUses", "numFreePOWUses", "numFreePurchaseUses"):
-        if k in dst:
-            dst[k] = 99
+        if k in fl:
+            fl[k] = 99
+    if not fl.get("perks") and mv and mv.get("perks"):
+        fl["perks"] = copy.deepcopy(mv["perks"])
+
+def restore_flonase_assets(stage_dir):
+    """Extract Flonase's cut loose files (bottle, banner, 6 particle VFX) from its .db bank into the
+    APK's Scene_Flonace folder, renamed to the exact casing the .csb scene loads."""
+    scene = pathlib.Path(stage_dir) / "assets" / "Assets" / "CocosScenes" / "Scene_Flonace"
+    got = tbatlas.extract_db(str(FLONASE_DB), str(scene), rename=FLONASE_RENAME)
+    return [pathlib.Path(p).name for p in got.values()]
 
 def show_hidden_powerups(helper):
     for x in helper["helpers"]:
@@ -126,9 +130,6 @@ def label_crasher(locoverride, forcelist, strid, base_name):
     if strid not in forcelist.get("strings", []):
         forcelist.setdefault("strings", []).append(strid)
 
-def rename_flonase_crashes(locoverride, forcelist):
-    label_crasher(locoverride, forcelist, "STRID_HELPERS_FLONASEPOWERUP_TITLE", "Flonase")
-
 def apply_and_stage(config, stage_dir="mod_stage", key=None):
     key = key or tbcrypt.load_key()
     stage = pathlib.Path(stage_dir) / "assets" / "Assets" / "Coefficients"
@@ -145,8 +146,10 @@ def apply_and_stage(config, stage_dir="mod_stage", key=None):
         show_hidden_powerups(get("helper.json").obj); applied.append("show_hidden")
     if config.get("all_free"):
         all_powerups_free(get("helper.json").obj); applied.append("all_free")
-    if config.get("fix_flonase"):
-        fix_flonase(get("helper.json").obj); applied.append("fix_flonase")
+    if config.get("restore_flonase"):
+        enable_flonase(get("helper.json").obj)
+        restore_flonase_assets(stage_dir)
+        applied.append("restore_flonase")
     for b in config.get("behavior", []):
         set_powerup_behavior(get("helper.json").obj, b["uId"], b.get("params"),
                              b.get("perk_values"), b.get("preset"))
@@ -164,10 +167,6 @@ def apply_and_stage(config, stage_dir="mod_stage", key=None):
     if cm:
         set_core_mechanics(get("CoreMechanicsCoefficients.json").obj, cm)
         applied.append("core_mechanics")
-    if config.get("rename_flonase"):
-        rename_flonase_crashes(get("LocStringsOverride.json").obj,
-                               get("ManualForceLocStringOverride.json").obj)
-        applied.append("rename_flonase")
     staged = []
     for name, tb in touched.items():
         (stage / name).write_bytes(tbfiles.dump_bytes(tb)); staged.append(name)

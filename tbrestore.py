@@ -40,8 +40,6 @@ def restore_catalog(key=None):
         tid = x.get("typeId"); twin = live_types.get(tid)
         if str(x.get("uId")) in ov:
             status = ov[str(x["uId"])]
-        elif x.get("uId") == 45:
-            status = "crashes"
         elif twin:
             status = "works"
         else:
