@@ -5,12 +5,15 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import tbdiscover, tbgallery
 
-CATS = ["disabled_powerup", "orphan_sprite", "unused_mode", "event_branded", "db_asset"]
+CATS = ["disabled_powerup", "orphan_sprite", "unused_mode", "event_branded", "db_asset", "sound"]
 
 class DiscoveryTab(QWidget):
     def __init__(self, cache_dir="discovery_cache"):
         super().__init__()
         self.cache_dir = cache_dir
+        from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+        self._audio = QAudioOutput(); self._player = QMediaPlayer()
+        self._player.setAudioOutput(self._audio)
         self.findings = self._load_or_build()
 
         self.search = QLineEdit(); self.search.setPlaceholderText("search…")
@@ -70,18 +73,28 @@ class DiscoveryTab(QWidget):
     def _make_card(self, f):
         box = QFrame(); box.setFrameShape(QFrame.Shape.StyledPanel)
         lay = QVBoxLayout(box)
-        thumbs = f.get("thumbs") or []
-        img = QLabel()
-        if thumbs and pathlib.Path(thumbs[0]).exists():
-            img.setPixmap(QPixmap(thumbs[0]).scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio))
+        sound_path = f.get("sound_path")
+        if sound_path:
+            play = QPushButton("▶ Play"); play.clicked.connect(lambda _, p=sound_path: self._play(p))
+            lay.addWidget(play)
         else:
-            img.setText("—")
-        img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(img)
+            thumbs = f.get("thumbs") or []
+            img = QLabel()
+            if thumbs and pathlib.Path(thumbs[0]).exists():
+                img.setPixmap(QPixmap(thumbs[0]).scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio))
+            else:
+                img.setText("—")
+            img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lay.addWidget(img)
         t = QLabel(f["title"]); t.setWordWrap(True); lay.addWidget(t)
-        s = QLabel(f["status"]); s.setStyleSheet("color:#8fd18f;font-size:10px"); lay.addWidget(s)
+        colour = "#e06767" if f["status"] == "orphan" else "#8fd18f"
+        s = QLabel(f["status"]); s.setStyleSheet(f"color:{colour};font-size:10px"); lay.addWidget(s)
         box.setFixedWidth(150)
         return box
+
+    def _play(self, path):
+        from PyQt6.QtCore import QUrl
+        self._player.setSource(QUrl.fromLocalFile(path)); self._player.play()
 
     def _apply_filter(self):
         s = self.search.text().lower()
