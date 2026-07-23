@@ -56,6 +56,19 @@ def atlas_image(db_bytes):
     ps = db_bytes.find(b"\x89PNG"); pe = db_bytes.find(b"IEND", ps) + 8
     return Image.open(io.BytesIO(db_bytes[ps:pe])).convert("RGBA")
 
+def write_cocos_plist(frames, texture_name, atlas_wh, out_plist):
+    """Write a cocos2d-x v2 SpriteFrame plist. `frames` = {frame_key: (x, y, w, h)}. The atlas texture
+    (referenced by `texture_name`) must sit next to `out_plist`."""
+    import plistlib
+    aw, ah = atlas_wh
+    fr = {}
+    for key, (x, y, w, h) in frames.items():
+        fr[key] = {"frame": f"{{{{{x},{y}}},{{{w},{h}}}}}", "offset": "{0,0}", "rotated": False,
+                   "sourceColorRect": f"{{{{0,0}},{{{w},{h}}}}}", "sourceSize": f"{{{w},{h}}}"}
+    doc = {"frames": fr, "metadata": {"format": 2, "textureFileName": texture_name,
+           "realTextureFileName": texture_name, "size": f"{{{aw},{ah}}}"}}
+    pathlib.Path(out_plist).write_bytes(plistlib.dumps(doc))
+
 def extract_db(db_path, out_dir, rename=None):
     """Crop every frame in `db_path` to `out_dir/<name>.png`. `rename` maps frame_name -> out
     filename (without .png) to satisfy case/extension mismatches the code expects. Returns

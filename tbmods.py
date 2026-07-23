@@ -50,11 +50,23 @@ def enable_flonase(helper):
         fl["perks"] = copy.deepcopy(mv["perks"])
 
 def restore_flonase_assets(stage_dir):
-    """Extract Flonase's cut loose files (bottle, banner, 6 particle VFX) from its .db bank into the
-    APK's Scene_Flonace folder, renamed to the exact casing the .csb scene loads."""
+    """Restore Flonase's cut in-game art from its .db bank into the APK's Scene_Flonace folder:
+      1. loose files (bottle, banner, 6 particle VFX) with the exact casing the .csb scene loads;
+      2. the cut sprite atlas Scene_Flonace.plist + Scene_Flonace.png (frames keyed both casings) that
+         FUN_009f28fc loads via addSpriteFramesWithFile → source of the runtime (animated) bottle."""
     scene = pathlib.Path(stage_dir) / "assets" / "Assets" / "CocosScenes" / "Scene_Flonace"
     got = tbatlas.extract_db(str(FLONASE_DB), str(scene), rename=FLONASE_RENAME)
-    return [pathlib.Path(p).name for p in got.values()]
+    data = FLONASE_DB.read_bytes()
+    atlas = tbatlas.atlas_image(data); frames = tbatlas.parse_frames(data)
+    atlas.save(scene / "Scene_Flonace.png")
+    keyed = {}
+    for name, rect in frames.items():
+        keyed[name + ".png"] = rect                        # lowercase source name
+        alt = FLONASE_RENAME.get(name)
+        if alt:
+            keyed[alt + ".png"] = rect                     # .csb-cased alias (capital)
+    tbatlas.write_cocos_plist(keyed, "Scene_Flonace.png", atlas.size, scene / "Scene_Flonace.plist")
+    return sorted(p.name for p in scene.glob("*"))
 
 def show_hidden_powerups(helper):
     for x in helper["helpers"]:
