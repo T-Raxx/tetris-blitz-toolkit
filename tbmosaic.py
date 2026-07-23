@@ -1,4 +1,16 @@
+import json, pathlib
+
 MOSAIC_FILES = {"SuperNova", "BlitzinMatrix", "FlyingFloMatrix"}
+SYM_FILE = "mosaic_symbols.json"
+_sym_cache = None
+
+def symbols(layer, path=SYM_FILE):
+    """RE'd char tables per mosaic layer: {char: {name, frame?}}. 'colors' | 'tags' | 'groups'."""
+    global _sym_cache
+    if _sym_cache is None:
+        p = pathlib.Path(path)
+        _sym_cache = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    return _sym_cache.get(layer, {})
 
 class Cell:
     __slots__ = ("color", "tag", "group")

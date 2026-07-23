@@ -107,3 +107,11 @@ def powerup_icon_map(cache_dir):
     """Extract powerup icons; return tag-char -> path for those present."""
     extracted = extract_named(cache_dir, list(POWERUP_FRAMES.values()))
     return {ch: extracted[name] for ch, name in POWERUP_FRAMES.items() if name in extracted}
+
+def tag_sprite_map(cache_dir, tags=None):
+    """Extract the mosaic tag icons declared in mosaic_symbols.json; return tag-char -> png path."""
+    import tbmosaic
+    tags = tags or tbmosaic.symbols("tags")
+    frames = {ch: t["frame"] for ch, t in tags.items() if t.get("frame")}
+    got = extract_named(cache_dir, list(frames.values()))
+    return {ch: got[fr] for ch, fr in frames.items() if fr in got}

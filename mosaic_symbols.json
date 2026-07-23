@@ -1,0 +1,21 @@
+{
+  "colors": {
+    "Y": {"name": "Yellow"}, "R": {"name": "Red"}, "L": {"name": "Orange"},
+    "N": {"name": "Purple"}, "B": {"name": "LightBlue"}, "n": {"name": "DarkBlue"},
+    "m": {"name": "Green"}
+  },
+  "tags": {
+    "4": {"name": "Bomb", "frame": "Common/helper_bomb.png"},
+    "5": {"name": "Meteor", "frame": "Common/helper_meteor.png"},
+    "6": {"name": "Magnet", "frame": "Common/helper_magnet.png"},
+    "7": {"name": "Blockade", "frame": "Common/helper_blockade.png"},
+    "8": {"name": "Inversion", "frame": "Common/finisher_inversion.png"},
+    "9": {"name": "Rewind", "frame": "Common/finisher_rewind.png"},
+    "A": {"name": "MinoRain", "frame": "Common/finisher_minoRain.png"},
+    "B": {"name": "Lucky7", "frame": "Common/helper_lucky7.png"},
+    "C": {"name": "TrippleI", "frame": "Common/helper_trippleI.png"},
+    "p": {"name": "Special p", "frame": null},
+    "s": {"name": "Special s", "frame": null}
+  },
+  "groups": {}
+}
