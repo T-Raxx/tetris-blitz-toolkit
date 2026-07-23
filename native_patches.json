@@ -8,5 +8,10 @@
   { "id": "powerup_cap_removed", "name": "Remove on-board powerup cap", "type": "inline", "status": "works",
     "note": "Removes the per-type on-board powerup limit (FUN_00f4e9dc cur<max gate) so the generator never returns 'no powerup'. Pair with a high spawn rate to saturate the matrix. Turns b.lt into an unconditional branch, skipping the -1.",
     "writes": [
-      { "ghidra_addr": "0x00f4edbc", "orig": "4b000054", "patch": "02000014" } ] }
+      { "ghidra_addr": "0x00f4edbc", "orig": "4b000054", "patch": "02000014" } ] },
+  { "id": "fps_cap", "name": "FPS cap (uncap / raise)", "type": "inline", "status": "works",
+    "note": "Raises/removes the native 30fps frame limiter (FUN_00ca2450 @ 0xca2470). Engine is delta-time based, so higher fps is smooth with no speed change. 0 ms = uncapped.",
+    "param": { "name": "ms", "label": "target fps", "convert": "fps_to_ms", "min": 30, "max": 240, "default": 60 },
+    "writes": [
+      { "ghidra_addr": "0x00ca2470", "orig": "880240f9", "asm": "mov x8, #{ms}" } ] }
 ] }
