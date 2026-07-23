@@ -5,12 +5,12 @@ def test_symbols_colors_all_seven():
     assert set(cols) == set("YRLNBnm")                 # the 7 TetriminoColor chars
     assert cols["Y"]["name"] == "Yellow"
 
-def test_symbols_tags_powerups_and_specials():
+def test_symbols_tags_all_15_powerups_and_specials():
     tags = tbmosaic.symbols("tags")
-    for ch in "456789ABC":
-        assert ch in tags
+    for ch in "123456789ABCDEF":            # every uId 1-F (single-hex-char taggable) powerup/finisher
+        assert ch in tags and tags[ch].get("frame")
     assert "p" in tags and "s" in tags
-    assert tags["4"]["frame"] == "Common/helper_bomb.png"
+    assert tags["1"]["name"] == "Quake" and tags["F"]["name"] == "Crusher"
 
 def test_symbols_groups_empty_free_brush():
     assert tbmosaic.symbols("groups") == {}

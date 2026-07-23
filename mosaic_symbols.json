@@ -5,6 +5,9 @@
     "m": {"name": "Green"}
   },
   "tags": {
+    "1": {"name": "Quake", "frame": "Common/helper_quake.png"},
+    "2": {"name": "Laser", "frame": "Common/helper_laser.png"},
+    "3": {"name": "Time", "frame": "Common/helper_time.png"},
     "4": {"name": "Bomb", "frame": "Common/helper_bomb.png"},
     "5": {"name": "Meteor", "frame": "Common/helper_meteor.png"},
     "6": {"name": "Magnet", "frame": "Common/helper_magnet.png"},
@@ -14,6 +17,9 @@
     "A": {"name": "MinoRain", "frame": "Common/finisher_minoRain.png"},
     "B": {"name": "Lucky7", "frame": "Common/helper_lucky7.png"},
     "C": {"name": "TrippleI", "frame": "Common/helper_trippleI.png"},
+    "D": {"name": "Multiplier", "frame": "Common/helper_multiplyer.png"},
+    "E": {"name": "Narrow", "frame": "Common/helper_narrow.png"},
+    "F": {"name": "Crusher", "frame": "Common/helper_crusher.png"},
     "p": {"name": "Special p", "frame": null},
     "s": {"name": "Special s", "frame": null}
   },
