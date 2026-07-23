@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import tbdiscover, tbgallery
 
-CATS = ["disabled_powerup", "orphan_sprite", "unused_mode", "event_branded"]
+CATS = ["disabled_powerup", "orphan_sprite", "unused_mode", "event_branded", "db_asset"]
 
 class DiscoveryTab(QWidget):
     def __init__(self, cache_dir="discovery_cache"):
@@ -22,7 +22,8 @@ class DiscoveryTab(QWidget):
             self.cat_boxes[c] = cb; bar.addWidget(cb)
         rebuild = QPushButton("Rebuild"); rebuild.clicked.connect(self._rebuild)
         export = QPushButton("Export HTML…"); export.clicked.connect(self._export)
-        bar.addStretch(1); bar.addWidget(rebuild); bar.addWidget(export)
+        extractall = QPushButton("Extract all images…"); extractall.clicked.connect(self._extract_all)
+        bar.addStretch(1); bar.addWidget(rebuild); bar.addWidget(export); bar.addWidget(extractall)
 
         self.grid = QGridLayout()
         holder = QWidget(); holder.setLayout(self.grid)
@@ -32,6 +33,21 @@ class DiscoveryTab(QWidget):
         self.count_lbl = QLabel(); root.addLayout(bar); root.addWidget(self.count_lbl); root.addWidget(scroll, 1)
         self.cards = []
         self._populate()
+
+    def _extract_all_dir(self, out_dir):
+        import tbextract
+        return tbextract.extract_all(out_dir)
+
+    def _extract_all(self):
+        from PyQt6.QtWidgets import QMessageBox
+        d = QFileDialog.getExistingDirectory(self, "Extract all images to…")
+        if not d:
+            return
+        res = self._extract_all_dir(d)
+        QMessageBox.information(self, "Extract all images",
+            f"{res['count']} images\n"
+            f"db={res['by_type']['db']} atlas={res['by_type']['atlas']} loose={res['by_type']['loose']}\n"
+            f"errors: {len(res['errors'])}\n→ {res['out_dir']}")
 
     def _load_or_build(self):
         cat = pathlib.Path(self.cache_dir) / "catalog.json"
