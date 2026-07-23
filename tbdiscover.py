@@ -1,5 +1,5 @@
 import json, re, pathlib, plistlib
-import tbassets, tbatlas
+import tbassets, tbatlas, tbsounds
 
 ASSETS = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets"
 COCOS = ASSETS / "Cocos2dxImages" / "size150"
@@ -138,7 +138,7 @@ def detect_db_assets(cache_dir, assets_dir=tbatlas.ASSETS):
                         "sprites": [name], "thumbs": [str(thumb)]})
     return out
 
-def build_catalog(cache_dir="discovery_cache", include_db=True):
+def build_catalog(cache_dir="discovery_cache", include_db=True, include_sounds=True):
     cache = pathlib.Path(cache_dir); (cache / "thumbnails").mkdir(parents=True, exist_ok=True)
     idx = atlas_index(); refs = reference_tokens()
     disabled = detect_disabled_powerups()
@@ -170,6 +170,8 @@ def build_catalog(cache_dir="discovery_cache", include_db=True):
 
     if include_db:
         findings = findings + detect_db_assets(cache_dir)
+    if include_sounds:
+        findings = findings + tbsounds.detect_sounds()
     catalog = {"counts": _counts(findings), "findings": findings}
     (cache / "catalog.json").write_text(json.dumps(catalog, indent=1), encoding="utf-8")
     return catalog

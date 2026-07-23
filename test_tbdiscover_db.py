@@ -9,3 +9,7 @@ def test_detect_db_assets(tmp_path):
 def test_build_catalog_includes_db(tmp_path):
     cat = tbdiscover.build_catalog(str(tmp_path), include_db=True)
     assert cat["counts"].get("db_asset", 0) > 0
+
+def test_build_catalog_includes_sounds(tmp_path):
+    cat = tbdiscover.build_catalog(str(tmp_path), include_db=False, include_sounds=True)
+    assert cat["counts"].get("sound", 0) > 200
