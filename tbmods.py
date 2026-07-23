@@ -32,6 +32,26 @@ def level_fix(helper):
             else:
                 x["perks"] = copy.deepcopy(stub)
 
+def fix_flonase(helper, src_uId=38, dst_uId=45):
+    """Reroute Flonase (uId45, typeId37) to Mino Vortex's working NEW vortex effect (typeId31).
+    typeId37 dispatches to the deprecated/broken OLD vortex effect (reads 'numMinos'); typeId31 to the
+    finished NEW effect (reads 'NumMinos'). Fix param casing, copy Mino Vortex perks, enable + free."""
+    by = {x.get("uId"): x for x in helper["helpers"]}
+    dst = by.get(dst_uId); src = by.get(src_uId)
+    if not dst or not src:
+        return
+    dst["typeId"] = src.get("typeId")
+    params = dst.get("params")
+    if isinstance(params, dict) and "numMinos" in params and "NumMinos" not in params:
+        params["NumMinos"] = params.pop("numMinos")
+    if not dst.get("perks") and src.get("perks"):
+        dst["perks"] = copy.deepcopy(src["perks"])
+    dst["active"] = 1; dst["unlockedByDefault"] = True; dst["promotion"] = False
+    dst["price"] = 0
+    for k in ("numFreeUses", "numFreePOWUses", "numFreePurchaseUses"):
+        if k in dst:
+            dst[k] = 99
+
 def show_hidden_powerups(helper):
     for x in helper["helpers"]:
         if x.get("active") != 1:
@@ -125,6 +145,8 @@ def apply_and_stage(config, stage_dir="mod_stage", key=None):
         show_hidden_powerups(get("helper.json").obj); applied.append("show_hidden")
     if config.get("all_free"):
         all_powerups_free(get("helper.json").obj); applied.append("all_free")
+    if config.get("fix_flonase"):
+        fix_flonase(get("helper.json").obj); applied.append("fix_flonase")
     for b in config.get("behavior", []):
         set_powerup_behavior(get("helper.json").obj, b["uId"], b.get("params"),
                              b.get("perk_values"), b.get("preset"))

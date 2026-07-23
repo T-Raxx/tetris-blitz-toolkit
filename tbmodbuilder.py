@@ -45,8 +45,13 @@ class ModBuilderTab(QWidget):
         self.unlock_all = QCheckBox("Unlock all powerups")
         self.show_hidden = QCheckBox("Show hidden powerups (+ level fix)")
         self.all_free = QCheckBox("All powerups free")
+        self.fix_flonase_cb = QCheckBox("Fix Flonase crash (→ Mino Vortex effect)")
+        self.fix_flonase_cb.setToolTip("Reroutes Flonase's broken typeId37 effect to Mino Vortex's "
+                                       "working vortex effect. Shop keeps the Flonase icon/name; "
+                                       "in-play shows the vortex effect. Enables + frees it.")
         self.rename_flonase = QCheckBox('Rename Flonase → "(CRASHES GAME)"')
-        for c in (self.unlock_all, self.show_hidden, self.all_free, self.rename_flonase):
+        for c in (self.unlock_all, self.show_hidden, self.all_free, self.fix_flonase_cb,
+                  self.rename_flonase):
             lay.addWidget(c)
         return g
 
@@ -167,6 +172,7 @@ class ModBuilderTab(QWidget):
                 "behavior": list(self.behavior),
                 "coin_awards": {"on": self.coin_on.isChecked(), "multiplier": self.coin_mult.value()},
                 "core_mechanics": core,
+                "fix_flonase": self.fix_flonase_cb.isChecked(),
                 "rename_flonase": self.rename_flonase.isChecked()}
 
     def _apply(self):

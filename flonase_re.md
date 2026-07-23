@@ -45,7 +45,33 @@ dereferences as a pointer → SEGV. Consistent with "same as Mino Vortex but cra
 - Correct next step needs reliable ground truth: an actual ARM debugger breakpoint (Ghidra debugger
   or gdbserver) at the fault, or bisecting via multiple guarded candidates — not the houdini backtrace.
 
-## Status
-Section-injection framework (tbnative cave-patch + Native tab) shipped and unit-tested and proven to
-build/boot. Flonase native fix = **WIP** (guard iteration 1 ineffective; needs reliable fault
-localization). Shelved by decision — pivoting to the mod-UX/semantics subsystem.
+## RESOLVED (2026-07-22) — root cause = typeId routes to a broken vortex effect
+The houdini backtrace (FUN_00b8bf0c) was a red herring (the earlier guard was correctly ineffective).
+Real cause found by comparing Flonase (uId45) against its working behavior-twin Mino Vortex (uId38):
+
+- Flonase is a half-finished **Mino Vortex reskin**. Its params are the vortex params but keyed
+  **`numMinos`** (lowercase) — read only by the **deprecated OLD vortex effect** class
+  (`FUN_009f3e84`). Current Mino Vortex uses **`NumMinos`** + the **NEW effect** (`FUN_00a10e98`).
+- The effect class is selected by **`typeId`**: Flonase = 37 (old/broken), Mino Vortex = 31 (new/works).
+  Both param loaders default safely, so the crash is in the OLD effect's *execution/render*, which was
+  never finished (likely dereferences a Flonase in-game asset that doesn't exist → the garbage `1`
+  pointer / fault addr 0x19). Prior restoration already gave Flonase Mino Vortex perks and it STILL
+  crashed → not perks, not param-defaults → the typeId→effect routing is the cause.
+- **Live-verified A/B:** typeId37 crashes on trigger; typeId31 does not.
+
+### Fix shipped (data layer) — `tbmods.fix_flonase`
+Reroute Flonase to Mino Vortex's working effect: typeId 37→31, param `numMinos`→`NumMinos`, inherit
+Mino Vortex perks, enable + free. Result (live-verified): **no crash**; shop keeps Flonase's icon+name
+(`iconBasePath`/`name` are Java/store-side — NOT in the native `.so`), in-play shows the vortex effect
+(typeId-driven native visuals; Flonase had no unique in-game art). Wired into Mod Builder
+("Fix Flonase crash"). No native patch needed.
+
+### Identity note (why not a native patch)
+Native powerup visuals are typeId-keyed (`iconBasePath` absent from the `.so`). Preserving the in-play
+visual as "Flonase" would require the typeId→effect **factory** switch (case 37 → new vortex class),
+which is buried in large code-pointer tables with no clean RTTI and no string anchor
+(helper.json field names aren't in the `.so`); dynamic tracing is blocked by houdini x86 JIT. Not worth
+it — the vortex is the intended effect and shop identity is already preserved.
+
+## Status (superseded)
+Flonase crash = **FIXED** via data reroute. The old section-injection cave notes below are historical.
