@@ -1,0 +1,6 @@
+PyQt6
+Pillow
+pycryptodome
+keystone-engine
+lief
+pytest

@@ -9,6 +9,12 @@ your device save, and repacks a redistributable, properly-signed APK.
 > coefficients, or encryption key. You supply your own legally-obtained copy of the game.
 > See **Legal** below.
 
+## Download
+
+Prebuilt binaries for **Windows** and **macOS** are attached to each
+[Release](../../releases) (built by CI with PyInstaller), alongside a source archive. They
+still need a JDK, `adb`, and your own game files (see **Setup**). Or run from source below.
+
 ## What it does
 
 - **Crypto layer** (`tbcrypt`, `tbfiles`) — AES-128-CBC round-trip of the game's encrypted
@@ -54,8 +60,11 @@ You must provide, locally and **never committed**:
 Run the GUI:
 
 ```
-python tb_editor.py
+python tb_editor.py          # or: ./run_editor.sh  (macOS/Linux)  |  run_editor.bat  (Windows)
 ```
+
+Works on Windows, macOS, and Linux — JDK tools (`jarsigner`/`keytool`) and `java` are resolved
+from `PATH` / `JAVA_HOME` / common JDK install dirs automatically.
 
 ## Tests
 

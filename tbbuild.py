@@ -1,10 +1,40 @@
-import subprocess, zipfile, pathlib, shutil, urllib.request
+import subprocess, zipfile, pathlib, shutil, urllib.request, os, glob
 
 SRC = pathlib.Path("..") / "Tetris blitz"
 PKG = "com.ea.tetrisblitz_row"
-JDK = pathlib.Path(r"C:\Program Files\Java\jdk-26.0.1\bin")
-JARSIGNER = str(JDK / "jarsigner.exe")
-KEYTOOL = str(JDK / "keytool.exe")
+
+# JDK install-dir globs per OS (jarsigner/keytool often aren't on PATH even when `java` is).
+_JDK_GLOBS = [
+    r"C:\Program Files\Java\*\bin", r"C:\Program Files\Eclipse Adoptium\*\bin",
+    r"C:\Program Files\Android\*\jre\bin",
+    "/Library/Java/JavaVirtualMachines/*/Contents/Home/bin",
+    "/opt/homebrew/opt/openjdk*/bin", "/usr/local/opt/openjdk*/bin",
+    "/usr/lib/jvm/*/bin", "/usr/lib/jvm/*/jre/bin",
+]
+
+def _jtool(name):
+    """Resolve a JDK tool (jarsigner/keytool/java) cross-platform: PATH, $JAVA_HOME/bin,
+    the resolved java's own dir, then common JDK install dirs. Falls back to the bare name."""
+    p = shutil.which(name)
+    if p:
+        return p
+    dirs = []
+    jh = os.environ.get("JAVA_HOME")
+    if jh:
+        dirs.append(pathlib.Path(jh) / "bin")
+    jv = shutil.which("java")
+    if jv:
+        dirs.append(pathlib.Path(jv).resolve().parent)
+    for pat in _JDK_GLOBS:
+        dirs += [pathlib.Path(d) for d in glob.glob(pat)]
+    for d in dirs:
+        for c in (d / name, d / (name + ".exe")):
+            if c.exists():
+                return str(c)
+    return name
+
+JARSIGNER = _jtool("jarsigner")
+KEYTOOL = _jtool("keytool")
 UBER_URL = "https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar"
 
 def _stored(rel):

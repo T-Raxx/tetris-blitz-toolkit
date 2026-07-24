@@ -7,7 +7,19 @@ rejects v1-only signatures (MuMu tolerated them, real phones don't).
 Self-contained: NO tbcheat imports. Usable as CLI or importable build().
     python apkbuild.py --mods ../tbcheat/mod_stage --out dist/tetrisblitz-modded.apk
 """
-import subprocess, zipfile, pathlib, urllib.request, hashlib, argparse
+import subprocess, zipfile, pathlib, urllib.request, hashlib, argparse, shutil, os
+
+def _java():
+    """Resolve the `java` launcher cross-platform: PATH first, then $JAVA_HOME/bin."""
+    p = shutil.which("java")
+    if p:
+        return p
+    jh = os.environ.get("JAVA_HOME")
+    if jh:
+        for c in (pathlib.Path(jh) / "bin" / "java", pathlib.Path(jh) / "bin" / "java.exe"):
+            if c.exists():
+                return str(c)
+    return "java"
 
 HERE = pathlib.Path(__file__).resolve().parent    # <repo>/apkbuilder
 REPO = HERE.parent                                # <repo> (tbcheat)
@@ -58,7 +70,7 @@ def sign(apk, keystore=None, run=subprocess.run):
     """v1+v2+v3 + zipalign in place via uber-apk-signer. No keystore -> uber's debug key (fine for
     sideload/testing). Returns the (overwritten) apk path."""
     jar = ensure_uber()
-    args = ["java", "-jar", jar, "--apks", str(apk), "--overwrite", "--allowResign"]
+    args = [_java(), "-jar", jar, "--apks", str(apk), "--overwrite", "--allowResign"]
     if keystore:
         args += ["--ks", str(keystore), "--ksAlias", "tb", "--ksPass", "android", "--ksKeyPass", "android"]
     run(args, check=True, capture_output=True)
@@ -66,7 +78,7 @@ def sign(apk, keystore=None, run=subprocess.run):
 
 def verify(apk, run=subprocess.run):
     jar = ensure_uber()
-    r = run(["java", "-jar", jar, "--apks", str(apk), "--verify", "--onlyVerify"],
+    r = run([_java(), "-jar", jar, "--apks", str(apk), "--verify", "--onlyVerify"],
             capture_output=True, text=True)
     return (getattr(r, "stdout", "") or "") + (getattr(r, "stderr", "") or "")
 
