@@ -50,11 +50,14 @@ You must provide, locally and **never committed**:
 
 1. **The base APK tree** — unpack your own `Tetris Blitz.apk` into a sibling `Tetris blitz/`
    folder.
-2. **The AES key** — extract it from *your* copy's `libTetrisBlitzApp.so` (method in
-   `ghidra_targets.md`), then create `key.json`:
-   ```json
-   { "key": "<16-char key>", "iv": "<16-char iv>" }
+2. **The AES key** — recovered automatically from *your own* game files (no EA secret is
+   shipped). Run:
    ```
+   python tbkeyfind.py
+   ```
+   It scans your `libTetrisBlitzApp.so` for the key and validates it against one of your
+   encrypted coefficients, writing `key.json`. The editor also does this on first launch (or
+   via the **Extract key** button). Manual method, if you prefer: `ghidra_targets.md`.
 3. **Your device save** (optional, for the Save tab) — pull it and point `TB_SAVE_DIR` at it.
 
 Run the GUI:

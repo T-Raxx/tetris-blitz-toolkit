@@ -10,7 +10,7 @@ CORE = ["tbcrypt", "tbfiles", "tbadb", "tbmosaic", "tbassets", "tbatlas", "tbass
         "tbpanels", "tbdiscover", "tbgallery", "tbbuild", "tbmods", "tbmodbuilder",
         "tbrestore", "tbrestoretab", "tbnative", "tbnativetab", "tbrawview", "tbinject",
         "tbinjecttab", "tbsave", "tbsavetab", "tbsemantics", "tbsounds", "tbextract",
-        "tbdiscovertab", "apkbuild"]
+        "tbdiscovertab", "tbkeyfind", "apkbuild"]
 
 def test_core_modules_import():
     for m in CORE:

@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
     QListWidget, QPlainTextEdit, QPushButton, QLabel, QTabWidget, QFileDialog, QMessageBox, QSplitter,
     QScrollArea)
 from PyQt6.QtCore import Qt
-import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab, tbrawview, tbinject, tbinjecttab, tbsavetab
+import tbfiles, tbadb, tbcrypt, tbpanels, tbmosaic, tbassembler, tbdiscovertab, tbbuild, tbmods, tbmodbuilder, tbrestore, tbrestoretab, tbnative, tbnativetab, tbrawview, tbinject, tbinjecttab, tbsavetab, tbkeyfind
 
 COEFF_DIR = pathlib.Path("..") / "Tetris blitz" / "assets" / "Assets" / "Coefficients"
 DARK = """
@@ -22,7 +22,7 @@ class Editor(QMainWindow):
         super().__init__()
         self.setWindowTitle("Tetris Blitz — File Editor")
         self.resize(1100, 720)
-        self.key = tbcrypt.load_key("key.json")
+        self.key = self._ensure_key()
         self.current = None
         self.current_path = None
         self.mod_stage = "mod_stage"
@@ -53,6 +53,9 @@ class Editor(QMainWindow):
         self._staged = {}          # rel-path -> bytes, for files staged via "Stage for build"
         self.tabs.currentChanged.connect(self._maybe_build_discovery)
 
+        keyb = QPushButton("Extract key"); keyb.clicked.connect(self._extract_key)
+        keyb.setToolTip("Recover the AES key from YOUR game files (lib .so + a coefficient). "
+                        "Runs automatically on first launch if key.json is missing.")
         openb = QPushButton("Open…"); openb.clicked.connect(self._open_dialog)
         saveb = QPushButton("Save As…"); saveb.clicked.connect(self._save_dialog)
         self.pullb = QPushButton("Pull save"); self.pushb = QPushButton("Push save")
@@ -66,7 +69,7 @@ class Editor(QMainWindow):
         redistb.setToolTip("Applies EVERY tab's mods, then produces a v2+ signed APK for real "
                            "non-rooted hardware (does NOT install — share the file).")
         top = QHBoxLayout()
-        for wdg in (openb, saveb, self.pullb, self.pushb, stageb, buildb, redistb, QLabel("fmt:"), self.badge):
+        for wdg in (keyb, openb, saveb, self.pullb, self.pushb, stageb, buildb, redistb, QLabel("fmt:"), self.badge):
             top.addWidget(wdg)
         top.addStretch(1); top.addWidget(self.status)
 
@@ -230,6 +233,34 @@ class Editor(QMainWindow):
         QMessageBox.information(self, "Build & Install",
             f"applied ({len(applied)}): {applied}\ninstalled = {res['installed']}\n\n{res['log'][-400:]}")
         self.status.setText("installed ✓" if res["installed"] else "install failed")
+
+    def _ensure_key(self):
+        """Load key.json, or auto-extract the AES key from the user's OWN game files on first run
+        (no EA secret is shipped). Returns the key dict, or None if the game files aren't present."""
+        if pathlib.Path("key.json").exists():
+            try:
+                return tbcrypt.load_key("key.json")
+            except Exception:
+                pass
+        try:
+            tbkeyfind.extract_from_game()
+            return tbcrypt.load_key("key.json")
+        except Exception:
+            return None
+
+    def _extract_key(self):
+        """Manual (re)extraction — e.g. after pointing at a different game copy."""
+        self.status.setText("extracting AES key from game files…"); QApplication.processEvents()
+        try:
+            r = tbkeyfind.extract_from_game()
+            self.key = tbcrypt.load_key("key.json")
+        except Exception as e:
+            QMessageBox.warning(self, "Extract key", f"Could not extract key:\n{e}\n\n"
+                                "Point --so/--coeff at your unpacked game, or run "
+                                "`python tbkeyfind.py`."); return
+        QMessageBox.information(self, "Extract key", f"key.json written (AES found: {r['aes']}).\n"
+                               "Reopen a file / tab to use it.")
+        self.status.setText("key extracted ✓")
 
     def _apkbuild_module(self):
         """Import the standalone apkbuilder (repo subfolder; falls back to a sibling folder)."""
